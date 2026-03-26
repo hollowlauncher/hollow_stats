@@ -1,36 +1,655 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Hollow Launcher Stats</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hollow Launcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0f1118;
+      --bg-secondary: #161b27;
+      --bg-card: #1c2333;
+      --bg-hover: #232d42;
+      --border: #2a3450;
+      --border-glow: #1dcd6644;
+      --green: #1dcd66;
+      --green-dim: #16a050;
+      --green-glow: #1dcd6622;
+      --blue: #4ea8de;
+      --yellow: #f5c542;
+      --red: #ff5c5c;
+      --text-primary: #e8edf5;
+      --text-secondary: #8b97b0;
+      --text-muted: #4f5e7a;
+      --font-main: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 40% at 50% -10%, #1dcd6614 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 90% 80%, #4ea8de08 0%, transparent 60%);
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 64px;
+      background: rgba(15,17,24,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--green), #0fa84e);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 20px var(--green-glow);
+    }
+
+    .nav-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; font-weight: 600;
+      padding: 4px 10px;
+      background: var(--green-glow);
+      border: 1px solid var(--green-dim);
+      border-radius: 20px;
+      color: var(--green);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .pulse-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 64px 24px 40px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.75rem; font-weight: 600;
+      color: var(--green);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      background: linear-gradient(135deg, #e8edf5 30%, #8b97b0);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      font-weight: 400;
+    }
+
+    /* ── GRID ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      background: radial-gradient(ellipse at 50% 0%, var(--green-glow), transparent 70%);
+    }
+
+    .card:hover { border-color: var(--border-glow); box-shadow: 0 0 30px #1dcd6610; }
+    .card:hover::before { opacity: 1; }
+
+    .card-label {
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .card-icon { font-size: 14px; opacity: 0.9; }
+
+    .card-value {
+      font-size: 2.6rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    .card-value.green { color: var(--green); text-shadow: 0 0 30px #1dcd6640; }
+    .card-value.blue  { color: var(--blue); }
+    .card-value.yellow{ color: var(--yellow); }
+
+    .card-sub {
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .card-sub span { color: var(--text-secondary); font-weight: 500; }
+
+    /* ── WIDE CARD ── */
+    .card-wide {
+      grid-column: 1 / -1;
+    }
+
+    /* ── CHART ── */
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-size: 0.95rem; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .chart-legend {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; color: var(--text-muted);
+    }
+
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+
+    .chart-wrap { position: relative; height: 120px; }
+
+    canvas#sparkline {
+      width: 100% !important;
+      height: 120px !important;
+    }
+
+    .chart-labels {
+      display: flex; justify-content: space-between;
+      margin-top: 6px;
+      font-size: 0.65rem; color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* ── STATUS ── */
+    .status-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+
+    .status-row:hover { background: var(--bg-hover); }
+
+    .status-indicator {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .status-indicator.online  { background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .status-indicator.offline { background: var(--red); }
+    .status-indicator.checking{ background: var(--yellow); animation: pulse 1s infinite; }
+
+    .status-name { font-size: 0.88rem; font-weight: 600; flex: 1; }
+    .status-detail { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* ── REFRESH BAR ── */
+    .refresh-bar-wrap {
+      margin-top: 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .refresh-bar-label { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+
+    .refresh-bar-track {
+      flex: 1; height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .refresh-bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 2px;
+      width: 100%;
+      transform-origin: left;
+      animation: refill 3s linear infinite;
+    }
+
+    @keyframes refill {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.75rem; color: var(--text-muted);
+    }
+
+    .footer-right { display: flex; gap: 16px; }
+    .footer-right a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+    .footer-right a:hover { color: var(--green); }
+
+    /* ── LOADING SKELETON ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-card) 50%, var(--bg-hover) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── NUMBER ANIMATION ── */
+    .animating { animation: countPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    @keyframes countPop {
+      0% { transform: scale(0.88); opacity: 0.6; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* responsive */
+    @media (max-width: 600px) {
+      nav { padding: 0 16px; }
+      .hero { padding: 40px 16px 28px; }
+      .container { padding: 0 16px 40px; }
+    }
+  </style>
 </head>
 <body>
 
-<h1>Hollow Launcher</h1>
-<p>Players Online: <span id="count">Loading...</span></p>
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="logo-icon">⬡</div>
+    Hollow Launcher
+  </div>
+  <div class="nav-badge">
+    <span class="pulse-dot"></span>
+    Live Stats
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">
+    ◆ &nbsp; Real-time Dashboard
+  </div>
+  <h1>Server Statistics</h1>
+  <p>Live player data updated every 3 seconds</p>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container">
+
+  <!-- STAT CARDS ROW -->
+  <div class="stats-grid">
+
+    <!-- Online Now -->
+    <div class="card">
+      <div class="card-label"><span class="card-icon">🟢</span> Players Online</div>
+      <div class="card-value green" id="count">—</div>
+      <div class="card-sub">Active in last <span>60 seconds</span></div>
+    </div>
+
+    <!-- Peak Today -->
+    <div class="card">
+      <div class="card-label"><span class="card-icon">📈</span> Peak Today</div>
+      <div class="card-value blue" id="peak">—</div>
+      <div class="card-sub">Session high <span id="peak-time">—</span></div>
+    </div>
+
+    <!-- Total Seen -->
+    <div class="card">
+      <div class="card-label"><span class="card-icon">👥</span> Unique Slots</div>
+      <div class="card-value yellow" id="total">—</div>
+      <div class="card-sub">Total entries in <span>database</span></div>
+    </div>
+
+    <!-- Last Update -->
+    <div class="card">
+      <div class="card-label"><span class="card-icon">🕐</span> Last Updated</div>
+      <div class="card-value" id="last-update" style="font-size:1.4rem; color: var(--text-secondary);">—</div>
+      <div class="refresh-bar-wrap" style="margin-top:14px;">
+        <span class="refresh-bar-label">Refreshing</span>
+        <div class="refresh-bar-track"><div class="refresh-bar-fill"></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHART CARD -->
+  <div class="card card-wide" style="margin-bottom: 24px;">
+    <div class="chart-header">
+      <div class="chart-title">
+        <span style="color:var(--green)">●</span> Player Activity — Last 2 Minutes
+      </div>
+      <div class="chart-legend">
+        <div class="legend-dot"></div>
+        Online count
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="sparkline"></canvas>
+    </div>
+    <div class="chart-labels" id="chart-labels">
+      <span>2m ago</span><span>90s</span><span>60s</span><span>30s</span><span>Now</span>
+    </div>
+  </div>
+
+  <!-- STATUS GRID (2-col on wide) -->
+  <div class="stats-grid" style="margin-bottom:0; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+
+    <!-- Server Status -->
+    <div class="card">
+      <div class="card-label" style="margin-bottom:16px;"><span class="card-icon">🖥️</span> Service Health</div>
+      <div class="status-row">
+        <div class="status-indicator" id="api-indicator" style="background:var(--yellow); animation: pulse 1s infinite;"></div>
+        <div class="status-name">Firebase Realtime DB</div>
+        <div class="status-detail" id="api-latency">checking…</div>
+      </div>
+      <div class="status-row">
+        <div class="status-indicator" id="data-indicator" style="background:var(--yellow); animation: pulse 1s infinite;"></div>
+        <div class="status-name">Player Tracking</div>
+        <div class="status-detail" id="data-status">checking…</div>
+      </div>
+      <div class="status-row">
+        <div class="status-indicator online"></div>
+        <div class="status-name">Stats Dashboard</div>
+        <div class="status-detail" style="color:var(--green)">Operational</div>
+      </div>
+    </div>
+
+    <!-- Session Info -->
+    <div class="card">
+      <div class="card-label" style="margin-bottom:16px;"><span class="card-icon">📊</span> Session Summary</div>
+      <div class="status-row">
+        <div style="font-size:18px">🕒</div>
+        <div class="status-name">Session Started</div>
+        <div class="status-detail" id="session-start">—</div>
+      </div>
+      <div class="status-row">
+        <div style="font-size:18px">🔄</div>
+        <div class="status-name">Total Refreshes</div>
+        <div class="status-detail" id="refresh-count">0</div>
+      </div>
+      <div class="status-row">
+        <div style="font-size:18px">📡</div>
+        <div class="status-name">Avg. Players (session)</div>
+        <div class="status-detail" id="avg-count">—</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span>Hollow Launcher · Live Stats</span>
+  <div class="footer-right">
+    <a href="#">Discord</a>
+    <a href="#">GitHub</a>
+    <a href="#">Status</a>
+  </div>
+</footer>
 
 <script>
-async function updateCount() {
-  try {
-    const res = await fetch("https://hollow-launcher-api-default-rtdb.asia-southeast1.firebasedatabase.app/players.json");
-    const data = await res.json();
+  const API = "https://hollow-launcher-api-default-rtdb.asia-southeast1.firebasedatabase.app/players.json";
 
-    const now = Date.now();
+  // State
+  let peakCount = 0;
+  let peakTime = null;
+  let totalRefreshes = 0;
+  let sumCounts = 0;
+  const sessionStart = new Date();
+  const history = []; // {time, count}
+  const MAX_HISTORY = 40;
 
-    const active = Object.values(data || {})
-      .filter(time => now - time < 60000)
-      .length;
+  // DOM refs
+  const $count        = document.getElementById("count");
+  const $peak         = document.getElementById("peak");
+  const $peakTime     = document.getElementById("peak-time");
+  const $total        = document.getElementById("total");
+  const $lastUpdate   = document.getElementById("last-update");
+  const $apiInd       = document.getElementById("api-indicator");
+  const $apiLat       = document.getElementById("api-latency");
+  const $dataInd      = document.getElementById("data-indicator");
+  const $dataStat     = document.getElementById("data-status");
+  const $refreshCount = document.getElementById("refresh-count");
+  const $avgCount     = document.getElementById("avg-count");
+  const $sessionStart = document.getElementById("session-start");
 
-    document.getElementById("count").innerText = active;
-  } catch (e) {
-    document.getElementById("count").innerText = "Error";
-    console.error(e);
+  // session start
+  $sessionStart.textContent = sessionStart.toLocaleTimeString();
+
+  // ── CHART ──
+  const canvas = document.getElementById("sparkline");
+  const ctx = canvas.getContext("2d");
+
+  function resizeCanvas() {
+    canvas.width  = canvas.offsetWidth  * window.devicePixelRatio;
+    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    drawChart();
   }
-}
 
-// update every 3 sec
-setInterval(updateCount, 3000);
-updateCount();
+  function drawChart() {
+    const W = canvas.offsetWidth;
+    const H = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    if (history.length < 2) return;
+
+    const counts = history.map(h => h.count);
+    const maxV   = Math.max(...counts, 1);
+    const minV   = Math.min(...counts);
+
+    const pts = history.map((h, i) => ({
+      x: (i / (history.length - 1)) * W,
+      y: H - ((h.count - minV) / (maxV - minV + 0.001)) * (H - 8) - 4
+    }));
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "rgba(29,205,102,0.25)");
+    grad.addColorStop(1, "rgba(29,205,102,0)");
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp = { x: (pts[i-1].x + pts[i].x)/2, y: pts[i-1].y };
+      const cp2= { x: (pts[i-1].x + pts[i].x)/2, y: pts[i].y };
+      ctx.bezierCurveTo(cp.x, cp.y, cp2.x, cp2.y, pts[i].x, pts[i].y);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp = { x: (pts[i-1].x + pts[i].x)/2, y: pts[i-1].y };
+      const cp2= { x: (pts[i-1].x + pts[i].x)/2, y: pts[i].y };
+      ctx.bezierCurveTo(cp.x, cp.y, cp2.x, cp2.y, pts[i].x, pts[i].y);
+    }
+    ctx.strokeStyle = "#1dcd66";
+    ctx.lineWidth   = 2.5;
+    ctx.lineJoin    = "round";
+    ctx.stroke();
+
+    // Last dot
+    const last = pts[pts.length - 1];
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#1dcd66";
+    ctx.fill();
+    ctx.strokeStyle = "#0f1118";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Horizontal grid lines
+    ctx.setLineDash([4, 6]);
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth   = 1;
+    [0.25, 0.5, 0.75].forEach(f => {
+      const y = H * f;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  setTimeout(resizeCanvas, 100);
+
+  // ── ANIMATE NUMBER ──
+  function animateValue(el, newVal) {
+    const old = el.textContent;
+    if (old === String(newVal)) return;
+    el.textContent = newVal;
+    el.classList.remove("animating");
+    void el.offsetWidth;
+    el.classList.add("animating");
+  }
+
+  // ── FETCH ──
+  async function updateCount() {
+    const t0 = Date.now();
+    try {
+      const res  = await fetch(API);
+      const lat  = Date.now() - t0;
+      const data = await res.json();
+      const now  = Date.now();
+
+      // Online
+      const vals   = Object.values(data || {});
+      const active = vals.filter(time => now - time < 60000).length;
+      const total  = vals.length;
+
+      // Update API status
+      $apiInd.className = "status-indicator online";
+      $apiInd.style.animation = "";
+      $apiLat.textContent = lat + " ms";
+      $apiLat.style.color = lat < 300 ? "var(--green)" : lat < 700 ? "var(--yellow)" : "var(--red)";
+
+      $dataInd.className = "status-indicator online";
+      $dataInd.style.animation = "";
+      $dataStat.textContent = total + " entries";
+      $dataStat.style.color = "var(--green)";
+
+      // Numbers
+      animateValue($count, active);
+      animateValue($total, total);
+
+      // Peak
+      if (active >= peakCount) {
+        peakCount = active;
+        peakTime  = new Date();
+        $peakTime.textContent = peakTime.toLocaleTimeString();
+      }
+      animateValue($peak, peakCount);
+
+      // Avg
+      totalRefreshes++;
+      sumCounts += active;
+      $refreshCount.textContent = totalRefreshes;
+      $avgCount.textContent     = (sumCounts / totalRefreshes).toFixed(1);
+
+      // Last update
+      $lastUpdate.textContent = new Date().toLocaleTimeString();
+
+      // History
+      history.push({ time: now, count: active });
+      if (history.length > MAX_HISTORY) history.shift();
+      drawChart();
+
+    } catch (e) {
+      $count.textContent = "Error";
+      $apiInd.className = "status-indicator offline";
+      $apiInd.style.animation = "";
+      $apiLat.textContent = "Unreachable";
+      $apiLat.style.color = "var(--red)";
+      $dataInd.className = "status-indicator offline";
+      $dataStat.textContent = "No data";
+      $dataStat.style.color = "var(--red)";
+      console.error(e);
+    }
+  }
+
+  setInterval(updateCount, 3000);
+  updateCount();
 </script>
-
 </body>
 </html>
