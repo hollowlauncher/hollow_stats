@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hollow Launcher Stats</title>
+</head>
+<body>
+
+<h1>Hollow Launcher</h1>
+<p>Players Online: <span id="count">Loading...</span></p>
+
+<script>
+async function updateCount() {
+  try {
+    const res = await fetch("https://hollow-launcher-api-default-rtdb.asia-southeast1.firebasedatabase.app/players.json");
+    const data = await res.json();
+
+    const now = Date.now();
+
+    const active = Object.values(data || {})
+      .filter(time => now - time < 60000)
+      .length;
+
+    document.getElementById("count").innerText = active;
+  } catch (e) {
+    document.getElementById("count").innerText = "Error";
+    console.error(e);
+  }
+}
+
+// update every 3 sec
+setInterval(updateCount, 3000);
+updateCount();
+</script>
+
+</body>
+</html>
