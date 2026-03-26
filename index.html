@@ -117,7 +117,6 @@
       top: 0;
       z-index: 100;
       background: var(--md-sys-color-surface);
-      /* tonal elevation on scroll — always show subtle on OLED */
       background-color: color-mix(in srgb, var(--md-sys-color-surface-container-low) 100%, transparent);
       border-bottom: 1px solid var(--md-sys-color-outline-variant);
       display: flex;
@@ -190,48 +189,163 @@
       50%      { opacity: 0.5; transform: scale(0.75); box-shadow: 0 0 4px var(--md-sys-color-primary); }
     }
 
-    /* ── HERO (M3 large headline) ── */
+    /* ── HERO ── */
     .hero {
-      padding: 40px 24px 32px;
+      position: relative;
+      padding: 56px 24px 48px;
       text-align: center;
+      overflow: hidden;
+    }
+
+    /* Radial glow backdrop */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 0%, rgba(109,213,160,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 100%, rgba(129,201,180,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Subtle grid overlay */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(109,213,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(109,213,160,0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, black 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
     }
 
     .hero-label {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 500;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--md-sys-color-primary);
-      margin-bottom: 10px;
-      display: flex;
+      margin-bottom: 14px;
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
       gap: 6px;
+      background: rgba(109,213,160,0.08);
+      border: 1px solid rgba(109,213,160,0.18);
+      border-radius: var(--md-shape-full);
+      padding: 5px 14px;
     }
 
-    .hero-label .icon { font-size: 16px; }
+    .hero-label .icon { font-size: 15px; }
 
     .hero h1 {
       font-family: var(--md-font-display);
-      font-size: clamp(2rem, 6vw, 3.5rem);
+      font-size: clamp(2.2rem, 6vw, 3.6rem);
       font-weight: 700;
       letter-spacing: -0.03em;
-      line-height: 1.05;
+      line-height: 1.06;
       color: var(--md-sys-color-on-surface);
-      margin-bottom: 8px;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 .hero-accent {
+      color: var(--md-sys-color-primary);
+      position: relative;
+    }
+
+    /* Underline shimmer on accent word */
+    .hero h1 .hero-accent::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      bottom: -4px;
+      height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--md-sys-color-primary) 40%,
+        var(--md-sys-color-secondary) 60%,
+        transparent 100%);
+      animation: shimmer-line 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer-line {
+      0%,100% { opacity: 0.5; transform: scaleX(0.7); }
+      50%      { opacity: 1;   transform: scaleX(1); }
     }
 
     .hero-sub {
-      font-size: 14px;
+      font-size: 15px;
       color: var(--md-sys-color-on-surface-variant);
       letter-spacing: 0.01em;
+      line-height: 1.6;
+      max-width: 480px;
+      margin: 0 auto 28px;
+    }
+
+    .hero-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .hero-stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: var(--md-shape-full);
+      background: var(--md-sys-color-surface-container);
+      border: 1px solid var(--md-sys-color-outline);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--md-sys-color-on-surface-variant);
+      letter-spacing: 0.01em;
+    }
+
+    .hero-stat-chip .icon {
+      font-size: 16px;
+      color: var(--md-sys-color-primary);
+    }
+
+    .hero-stat-chip strong {
+      color: var(--md-sys-color-on-surface);
+      font-weight: 600;
+    }
+
+    /* Hero bottom divider with glow */
+    .hero-divider {
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--md-sys-color-outline) 20%,
+        rgba(109,213,160,0.25) 50%,
+        var(--md-sys-color-outline) 80%,
+        transparent 100%);
+      margin: 0;
+    }
+
+    /* Fade-in entrance */
+    .hero-inner { animation: hero-enter 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+
+    @keyframes hero-enter {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ── LAYOUT ── */
     .container {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 0 16px 80px;
+      padding: 24px 16px 80px;
     }
 
     /* ── M3 CARD ── */
@@ -241,7 +355,6 @@
       overflow: hidden;
       position: relative;
       transition: background 200ms ease;
-      /* Tonal elevation layer */
     }
 
     .m3-card::after {
@@ -257,19 +370,16 @@
       background: var(--md-sys-color-surface-container);
     }
 
-    /* Elevated card (M3 Elevated) */
     .m3-card.elevated {
       background: var(--md-sys-color-surface-container-low);
       border: 1px solid var(--md-sys-color-outline-variant);
     }
 
-    /* Filled card */
     .m3-card.filled {
       background: var(--md-sys-color-surface-container-high);
       border: none;
     }
 
-    /* Tonal variant — primary tint */
     .m3-card.tonal-primary {
       background: var(--md-sys-color-primary-container);
     }
@@ -333,9 +443,7 @@
     }
 
     /* ── TIME CARD ── */
-    .time-card {
-      padding: 20px;
-    }
+    .time-card { padding: 20px; }
 
     .time-value {
       font-family: var(--md-font-mono);
@@ -540,9 +648,6 @@
     .status-badge.checking { background: var(--md-sys-color-tertiary); animation: live-pulse 1s infinite; }
     .status-badge.offline { background: var(--md-sys-color-error); }
 
-    /* ── NAVIGATION BAR (M3 bottom nav on mobile) ── */
-    /* Optional — hidden on desktop via footer instead */
-
     /* ── FOOTER ── */
     footer {
       border-top: 1px solid var(--md-sys-color-outline-variant);
@@ -637,6 +742,42 @@
     Live
   </div>
 </header>
+
+<!-- ══════════════════════════════ HERO HEADER ══ -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-label">
+      <span class="icon">hub</span>
+      Hollow Launcher · Dashboard
+    </div>
+
+    <h1>
+      Real-time <span class="hero-accent">Launcher</span><br>Activity Monitor
+    </h1>
+
+  
+
+    <div class="hero-chips">
+      <div class="hero-stat-chip">
+        <span class="icon">bolt</span>
+        Auto-refresh <strong>3s</strong>
+      </div>
+      <div class="hero-stat-chip">
+        <span class="icon">timer</span>
+        Active in last <strong>60s</strong>
+      </div>
+      <div class="hero-stat-chip">
+        <span class="icon">database</span>
+        Firebase <strong>asia-southeast1</strong>
+      </div>
+      <div class="hero-stat-chip">
+        <span class="icon">show_chart</span>
+        Last <strong>2 min</strong> history
+      </div>
+    </div>
+  </div>
+</section>
+<div class="hero-divider"></div>
 
 <!-- ══════════════════════════════ CONTENT ══ -->
 <div class="container">
