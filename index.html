@@ -908,55 +908,76 @@
     sx.fillStyle='#fff'; sx.fill();
   }
 
-  // ─── BAR CHART ───
-  function drawBar(t,w,m,y) {
-    const c=document.getElementById('barChart');
-    if(!c) return;
-    const ctx=c.getContext('2d');
-    const dpr=devicePixelRatio||1;
-    const cw=c.offsetWidth||360, ch=110;
-    c.width=cw*dpr; c.height=ch*dpr;
-    ctx.scale(dpr,dpr); ctx.clearRect(0,0,cw,ch);
+ function drawBar(t, w, m, y) {
+    const c = document.getElementById('barChart');
+    if (!c) return;
 
-    const vals=[t,w,m,y], lbls=['Today','Week','Month','Year'];
-    const max=Math.max(...vals,1);
-    const colW=(cw-32)/vals.length;
-    const bw=Math.min(colW-18,52);
+    const ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
 
-    vals.forEach((v,i)=>{
-      const x=16+i*colW+(colW-bw)/2;
-      const bh=Math.max(((v||0)/max)*(ch-28),2);
-      const by=ch-bh-20;
+    const cw = c.offsetWidth;
+    const ch = 180;
 
-      // glow
-      ctx.save(); ctx.filter='blur(8px)';
-      ctx.fillStyle='rgba(255,255,255,0.08)';
-      ctx.beginPath(); ctx.roundRect(x,by,bw,bh,[4,4,0,0]); ctx.fill();
-      ctx.restore();
+    // ✅ Prevent crash if layout not ready
+    if (!cw || !isFinite(cw)) return;
 
-      // fill
-      const bg=ctx.createLinearGradient(0,by,0,by+bh);
-      bg.addColorStop(0,'rgba(255,255,255,0.18)');
-      bg.addColorStop(1,'rgba(255,255,255,0.03)');
-      ctx.fillStyle=bg;
-      ctx.beginPath(); ctx.roundRect(x,by,bw,bh,[4,4,0,0]); ctx.fill();
+    c.width = cw * dpr;
+    c.height = ch * dpr;
 
-      // cap glow
-      ctx.save(); ctx.filter='blur(2px)';
-      ctx.fillStyle='rgba(255,255,255,0.5)';
-      ctx.beginPath(); ctx.roundRect(x,by,bw,2.5,[2]); ctx.fill();
-      ctx.restore();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // reset scale safely
+    ctx.clearRect(0, 0, cw, ch);
 
-      ctx.fillStyle='rgba(255,255,255,0.8)';
-      ctx.beginPath(); ctx.roundRect(x,by,bw,2,[2]); ctx.fill();
-
-      // label
-      ctx.fillStyle='rgba(255,255,255,0.22)';
-      ctx.font=`600 10px 'DM Sans',sans-serif`;
-      ctx.textAlign='center';
-      ctx.fillText(lbls[i],x+bw/2,ch-5);
+    // ✅ Safe values
+    const vals = [t, w, m, y].map(v => {
+      v = Number(v);
+      return isFinite(v) && v >= 0 ? v : 0;
     });
-  }
+
+    const labels = ['Today', 'Week', 'Month', 'Year'];
+
+    const max = Math.max(...vals);
+    const safeMax = max > 0 ? max : 1;
+
+    const colW = (cw - 32) / vals.length;
+    const bw = Math.min(colW - 18, 52);
+
+    vals.forEach((v, i) => {
+      const x = 16 + i * colW + (colW - bw) / 2;
+      const bh = Math.max((v / safeMax) * (ch - 40), 4);
+      const by = ch - bh - 24;
+
+      if (!isFinite(by) || !isFinite(bh)) return;
+
+      // 🌟 Glow
+      ctx.save();
+      ctx.filter = 'blur(10px)';
+      ctx.fillStyle = 'rgba(0,255,200,0.15)';
+      ctx.beginPath();
+      ctx.roundRect(x, by, bw, bh, [6,6,0,0]);
+      ctx.fill();
+      ctx.restore();
+
+      // 🎨 Gradient fill
+      const gradient = ctx.createLinearGradient(0, by, 0, by + bh);
+      gradient.addColorStop(0, '#00ffc6');
+      gradient.addColorStop(1, '#0066ff');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(x, by, bw, bh, [6,6,0,0]);
+      ctx.fill();
+
+      // ✨ Top highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(x, by, bw, 2);
+
+      // 🏷 Label
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = "600 11px 'DM Sans', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + bw / 2, ch - 6);
+    });
+ }
 
   // ─── UTILS ───
   function fmt(n) {
