@@ -12,27 +12,18 @@
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+    import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
-    // ── Replace with your Firebase project config ──
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBImlfiRQOoY5kWBU-YsSffKEYTjFJdDe8",
-  authDomain: "hollow-launcher-api.firebaseapp.com",
-  databaseURL: "https://hollow-launcher-api-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "hollow-launcher-api",
-  storageBucket: "hollow-launcher-api.firebasestorage.app",
-  messagingSenderId: "981071558548",
-  appId: "1:981071558548:web:df8bcde1e1fd0a2cb80181",
-  measurementId: "G-W6DM9YCQM4"
-};
-
-    let db = null, fbReady = false;
-    try {
-      const app = initializeApp(firebaseConfig);
-      db = getDatabase(app);
-      fbReady = true;
-    } catch(e) { console.warn('[Firebase] running local-only'); }
+    const firebaseConfig = {
+      apiKey: "AIzaSyBImlfiRQOoY5kWBU-YsSffKEYTjFJdDe8",
+      authDomain: "hollow-launcher-api.firebaseapp.com",
+      databaseURL: "https://hollow-launcher-api-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "hollow-launcher-api",
+      storageBucket: "hollow-launcher-api.firebasestorage.app",
+      messagingSenderId: "981071558548",
+      appId: "1:981071558548:web:df8bcde1e1fd0a2cb80181",
+      measurementId: "G-W6DM9YCQM4"
+    };
 
     const today    = new Date().toISOString().slice(0,10);
     const monthKey = new Date().toISOString().slice(0,7);
@@ -45,74 +36,77 @@ const firebaseConfig = {
     const weekKey = getWeekKey();
 
     let state = {
-      activeNow:0, peakToday:0, peakAlltime:0,
-      today:0, week:0, month:0, year:0, alltime:0,
-      uptime:0, sparkData:Array(30).fill(0),
-      firebaseConnected:fbReady, lastSync:null
+      activeNow: 0, peakToday: 0, peakAlltime: 0,
+      today: 0, week: 0, month: 0, year: 0, alltime: 0,
+      uptime: 0, sparkData: Array(30).fill(0),
+      firebaseConnected: false, lastSync: null
     };
 
-    function sim() { return Math.floor(Math.random()*80)+20+(Math.random()>0.85?Math.floor(Math.random()*55):0); }
-    function getLocal() { try{return JSON.parse(localStorage.getItem('hollow_v2')||'{}')}catch{return{}} }
-    function saveLocal(s) { try{localStorage.setItem('hollow_v2',JSON.stringify(s))}catch{} }
-
-    async function fbSave() {
-      if(!db) return;
-      try {
-        await set(ref(db,'stats/live'),{activeNow:state.activeNow,peakAlltime:state.peakAlltime,peakToday:state.peakToday,at:Date.now()});
-        await set(ref(db,`stats/daily/${today}`),{sessions:state.today,peak:state.peakToday});
-        await set(ref(db,`stats/weekly/${weekKey}`),{sessions:state.week});
-        await set(ref(db,`stats/monthly/${monthKey}`),{sessions:state.month});
-        await set(ref(db,`stats/yearly/${yearKey}`),{sessions:state.year});
-        await set(ref(db,'stats/alltime'),{sessions:state.alltime,peak:state.peakAlltime});
-        state.lastSync = Date.now();
-        window.__fbStatus?.(true);
-      } catch(e) { window.__fbStatus?.(false); }
+    let db = null;
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+    } catch(e) {
+      console.warn('[Firebase] init failed:', e);
+      window.__fbStatus?.(false);
     }
 
-    async function fbLoad() {
-      if(!db) return false;
-      try {
-        const snap = await get(ref(db,'stats'));
-        if(!snap.exists()) return false;
-        const d = snap.val();
-        if(d.daily?.[today])    { state.today=d.daily[today].sessions||0; state.peakToday=d.daily[today].peak||0; }
-        if(d.weekly?.[weekKey]) state.week=d.weekly[weekKey].sessions||0;
-        if(d.monthly?.[monthKey]) state.month=d.monthly[monthKey].sessions||0;
-        if(d.yearly?.[yearKey]) state.year=d.yearly[yearKey].sessions||0;
-        if(d.alltime) { state.alltime=d.alltime.sessions||0; state.peakAlltime=d.alltime.peak||0; }
-        if(d.live)    state.activeNow=d.live.activeNow||0;
-        return true;
-      } catch { return false; }
-    }
+    function init() {
+      // Uptime ticker (local — just counts time on this page)
+      setInterval(() => {
+        state.uptime++;
+        window.__uptimeTick?.(state.uptime);
+      }, 1000);
 
-    async function init() {
-      const local = getLocal();
-      if(local.today_key===today) {
-        state.today=local.today||0; state.week=local.week||0; state.month=local.month||0;
-        state.year=local.year||0; state.alltime=local.alltime||0;
-        state.peakToday=local.peakToday||0; state.peakAlltime=local.peakAlltime||0;
-      }
-      await fbLoad();
-
-      setInterval(()=>{ state.uptime++; window.__uptimeTick?.(state.uptime); }, 1000);
-
-      let syncCtr = 0;
-      setInterval(async () => {
-        const active = sim();
-        state.activeNow = active;
-        if(active>state.peakToday)   state.peakToday=active;
-        if(active>state.peakAlltime) state.peakAlltime=active;
-        const inc = Math.floor(Math.random()*3)+1;
-        state.today+=inc; state.week+=inc; state.month+=inc; state.year+=inc; state.alltime+=inc;
-        state.sparkData = [...state.sparkData.slice(1), active];
-        saveLocal({today_key:today,today:state.today,week:state.week,month:state.month,
-          year:state.year,alltime:state.alltime,peakToday:state.peakToday,peakAlltime:state.peakAlltime});
-        if(++syncCtr%4===0) await fbSave();
+      if (!db) {
+        window.__fbStatus?.(false);
         window.__dash?.(state);
-      }, 3000);
+        return;
+      }
 
-      state.activeNow = sim();
-      window.__dash?.(state);
+      // ── Real-time listener on the entire stats node ──
+      onValue(ref(db, 'stats'), (snap) => {
+        if (!snap.exists()) {
+          window.__fbStatus?.(false);
+          window.__dash?.(state);
+          return;
+        }
+
+        const d = snap.val();
+
+        // Live players
+        if (d.live) {
+          state.activeNow  = d.live.activeNow  ?? 0;
+          state.peakToday  = d.live.peakToday  ?? 0;
+          state.peakAlltime= d.live.peakAlltime ?? 0;
+        }
+
+        // Period session counts
+        if (d.daily?.[today])      { state.today = d.daily[today].sessions ?? 0; }
+        if (d.weekly?.[weekKey])   { state.week  = d.weekly[weekKey].sessions ?? 0; }
+        if (d.monthly?.[monthKey]) { state.month = d.monthly[monthKey].sessions ?? 0; }
+        if (d.yearly?.[yearKey])   { state.year  = d.yearly[yearKey].sessions ?? 0; }
+        if (d.alltime)             { state.alltime = d.alltime.sessions ?? 0; }
+
+        // Spark history — expects stats/spark to be an array of up to 30 active-player samples
+        // written by your game server. Falls back to zeros if not present.
+        if (Array.isArray(d.spark)) {
+          const arr = d.spark.slice(-30);
+          state.sparkData = [...Array(30 - arr.length).fill(0), ...arr];
+        } else {
+          // build a rolling window from activeNow if no dedicated spark data
+          state.sparkData = [...state.sparkData.slice(1), state.activeNow];
+        }
+
+        state.firebaseConnected = true;
+        state.lastSync = Date.now();
+
+        window.__fbStatus?.(true);
+        window.__dash?.(state);
+      }, (err) => {
+        console.error('[Firebase] read error:', err);
+        window.__fbStatus?.(false);
+      });
     }
 
     init();
@@ -1005,12 +999,12 @@ const firebaseConfig = {
     drawBar(s.today,s.week,s.month,s.year);
 
     const sl=document.getElementById('syncLabel');
-    if(s.firebaseConnected && s.lastSync) {
-      sl.textContent=`Synced ${new Date(s.lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
-    } else if(s.firebaseConnected) {
-      sl.textContent='Connecting to Firebase…';
+    if(s.firebaseConnected) {
+      sl.textContent = s.lastSync
+        ? `Live · updated ${new Date(s.lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`
+        : 'Connected to Firebase…';
     } else {
-      sl.textContent='Local mode · add Firebase config to sync';
+      sl.textContent = 'Not connected · check Firebase config';
     }
   };
 
@@ -1059,8 +1053,8 @@ const firebaseConfig = {
 
   // ─── CLEAR DATA ───
   function clearData() {
-    if(confirm('Clear all local cached stats?')) {
-      localStorage.removeItem('hollow_v2');
+    if(confirm('Clear cached data and reload?')) {
+      localStorage.clear();
       location.reload();
     }
   }
