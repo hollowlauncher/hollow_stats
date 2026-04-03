@@ -549,4 +549,523 @@
       box-shadow:0 0 12px rgba(255,255,255,0.09);
     }
     .tog-knob {
-      
+      position:absolute; top:2px; left:2px;
+      width:21px; height:21px; border-radius:50%;
+      background:var(--w40);
+      box-shadow:0 1px 4px rgba(0,0,0,0.6);
+      transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .tog.on .tog-knob {
+      transform:translateX(19px);
+      background:var(--w100);
+      box-shadow:0 0 8px rgba(255,255,255,0.5),0 1px 4px rgba(0,0,0,0.4);
+    }
+
+    /* ─── DETAIL VIEW ─── */
+    .drow {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:13px 16px; position:relative;
+    }
+    .drow + .drow::before {
+      content:''; position:absolute; top:0; left:16px; right:16px;
+      height:0.5px; background:var(--line2);
+    }
+    .drow-l { display:flex; align-items:center; gap:10px; }
+    .drow-icon { color:var(--w20, rgba(255,255,255,0.2)); }
+    .drow-name { font-size:14px; font-weight:500; color:var(--w70); }
+    .drow-sub  { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:1px; }
+    .drow-val {
+      font-family:var(--mono); font-size:16px; font-weight:500;
+      color:var(--w100); letter-spacing:-0.3px;
+      text-shadow:0 0 10px rgba(255,255,255,0.2);
+    }
+
+    /* ─── FOOTER ─── */
+    .footer { text-align:center; padding:4px 0 6px; }
+    .footer-txt { font-size:11px; color:var(--w15); letter-spacing:0.02em; }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes pop {
+      0%{transform:scale(0.88);opacity:0.6;}
+      60%{transform:scale(1.04);}
+      100%{transform:scale(1);opacity:1;}
+    }
+    .pop { animation:pop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+
+    @keyframes rise {
+      from{opacity:0;transform:translateY(18px);}
+      to{opacity:1;transform:translateY(0);}
+    }
+
+    .scroll > * { animation:rise 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+    .scroll > *:nth-child(1){animation-delay:.05s}
+    .scroll > *:nth-child(2){animation-delay:.09s}
+    .scroll > *:nth-child(3){animation-delay:.13s}
+    .scroll > *:nth-child(4){animation-delay:.16s}
+    .scroll > *:nth-child(5){animation-delay:.19s}
+    .scroll > *:nth-child(6){animation-delay:.22s}
+    .scroll > *:nth-child(7){animation-delay:.25s}
+    .scroll > *:nth-child(n+8){animation-delay:.28s}
+  </style>
+</head>
+<body>
+
+<!-- ─── STATUS BAR ─── -->
+<header class="status-bar">
+  <div class="bar-brand">
+    <div class="bar-logo">
+      <span class="mi s18 f">hub</span>
+    </div>
+    <span class="bar-name">Hollow</span>
+  </div>
+  <div class="bar-actions">
+    <div class="live-pill"><div class="live-dot"></div>Live</div>
+    <div class="fb-dot" id="fbDot" title="Firebase"></div>
+  </div>
+</header>
+
+<!-- ─── SCROLL VIEW ─── -->
+<main class="scroll">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div class="eyebrow"><span class="mi s14">monitoring</span> Overview</div>
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub" id="syncLabel">Initialising…</div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero-card">
+    <div class="hero-eyebrow"><span class="mi s14">person</span> Active Now</div>
+    <div class="hero-num" id="activeNow">—</div>
+    <div class="hero-cap">players online</div>
+    <div class="hero-rule"></div>
+    <div class="hero-row">
+      <div class="hero-metric">
+        <div class="hm-lbl">Peak Today</div>
+        <div class="hm-val" id="peakToday">—</div>
+        <div class="hm-sub">highest</div>
+      </div>
+      <div class="hero-metric">
+        <div class="hm-lbl">All-Time Peak</div>
+        <div class="hm-val" id="peakAlltime">—</div>
+        <div class="hm-sub">record</div>
+      </div>
+      <div class="hero-metric">
+        <div class="hm-lbl">Uptime</div>
+        <div class="hm-val" id="uptimeHero">0:00</div>
+        <div class="hm-sub">session</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPARKLINE -->
+  <div class="spark-card">
+    <div class="spark-hdr">
+      <div class="spark-title"><span class="mi s16">ssid_chart</span> Activity</div>
+      <div class="range-row">
+        <button class="rpill on" onclick="setRange('live',this)">Live</button>
+        <button class="rpill" onclick="setRange('1h',this)">1H</button>
+        <button class="rpill" onclick="setRange('24h',this)">24H</button>
+      </div>
+    </div>
+    <canvas id="sparkline"></canvas>
+    <div class="spark-foot"><span>30 min ago</span><span>Now</span></div>
+  </div>
+
+  <!-- SEGMENT -->
+  <div class="segment">
+    <button class="seg on" onclick="setView('periods',this)">Periods</button>
+    <button class="seg" onclick="setView('chart',this)">Chart</button>
+    <button class="seg" onclick="setView('details',this)">Details</button>
+  </div>
+
+  <!-- VIEW: PERIODS -->
+  <div id="view-periods">
+    <div class="stats-grid">
+      <div class="stat-tile">
+        <div class="st-lbl"><span class="mi s14">today</span> Today</div>
+        <div class="st-val" id="statToday">—</div>
+        <div class="st-cap">sessions</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-lbl"><span class="mi s14">date_range</span> Week</div>
+        <div class="st-val" id="statWeek">—</div>
+        <div class="st-cap">sessions</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-lbl"><span class="mi s14">calendar_month</span> Month</div>
+        <div class="st-val" id="statMonth">—</div>
+        <div class="st-cap">sessions</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-lbl"><span class="mi s14">military_tech</span> All Time</div>
+        <div class="st-val" id="statAlltime">—</div>
+        <div class="st-cap">total</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: CHART -->
+  <div id="view-chart" style="display:none;">
+    <div class="list-card" style="padding:18px 16px 14px;">
+      <div style="font-size:12px;color:var(--w20);margin-bottom:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
+        <span class="mi s14">bar_chart</span> Sessions by Period
+      </div>
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+
+  <!-- VIEW: DETAILS -->
+  <div id="view-details" style="display:none;">
+    <div class="list-card">
+      <div class="drow">
+        <div class="drow-l">
+          <span class="mi s20 drow-icon">today</span>
+          <div><div class="drow-name">Today</div><div class="drow-sub" id="det-date">—</div></div>
+        </div>
+        <div class="drow-val" id="det-today">—</div>
+      </div>
+      <div class="drow">
+        <div class="drow-l">
+          <span class="mi s20 drow-icon">date_range</span>
+          <div><div class="drow-name">This Week</div><div class="drow-sub" id="det-wk-lbl">—</div></div>
+        </div>
+        <div class="drow-val" id="det-week">—</div>
+      </div>
+      <div class="drow">
+        <div class="drow-l">
+          <span class="mi s20 drow-icon">calendar_month</span>
+          <div><div class="drow-name">This Month</div><div class="drow-sub" id="det-mo-lbl">—</div></div>
+        </div>
+        <div class="drow-val" id="det-month">—</div>
+      </div>
+      <div class="drow">
+        <div class="drow-l">
+          <span class="mi s20 drow-icon">event_note</span>
+          <div><div class="drow-name">This Year</div><div class="drow-sub" id="det-yr-lbl">—</div></div>
+        </div>
+        <div class="drow-val" id="det-year">—</div>
+      </div>
+      <div class="drow">
+        <div class="drow-l">
+          <span class="mi s20 drow-icon">military_tech</span>
+          <div><div class="drow-name">All Time</div><div class="drow-sub">Since launch</div></div>
+        </div>
+        <div class="drow-val" id="det-alltime">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPTIME -->
+  <div class="uptime-card">
+    <div class="uptime-icon"><span class="mi s22">timer</span></div>
+    <div>
+      <div class="uptime-lbl">Session Uptime</div>
+      <div class="uptime-val" id="uptimeDisp">00:00:00</div>
+      <div class="uptime-sub">This page session</div>
+    </div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="sect"><span class="mi s14">dns</span> Services</div>
+
+  <div class="list-card">
+    <div class="lrow">
+      <div class="lrow-icon lit"><span class="mi s18">public</span></div>
+      <div class="lrow-body"><div class="lrow-title">Game Server</div><div class="lrow-sub">us-east-1 · 12 ms</div></div>
+      <div class="sdot on"></div>
+    </div>
+    <div class="lrow">
+      <div class="lrow-icon"><span class="mi s18">lock</span></div>
+      <div class="lrow-body"><div class="lrow-title">Auth Service</div><div class="lrow-sub">All regions</div></div>
+      <div class="sdot on"></div>
+    </div>
+    <div class="lrow">
+      <div class="lrow-icon"><span class="mi s18">storage</span></div>
+      <div class="lrow-body"><div class="lrow-title">Firebase RTDB</div><div class="lrow-sub">Realtime sync</div></div>
+      <div class="sdot off" id="dbDot"></div>
+    </div>
+    <div class="lrow">
+      <div class="lrow-icon"><span class="mi s18">language</span></div>
+      <div class="lrow-body"><div class="lrow-title">CDN</div><div class="lrow-sub">Global edge</div></div>
+      <div class="sdot on"></div>
+    </div>
+  </div>
+
+  <!-- FIREBASE BANNER -->
+  <div class="fb-banner">
+    <span class="mi s22 fb-icon" id="fbIcon">cloud_off</span>
+    <div class="fb-body">
+      <div class="fb-head" id="fbHead">Not Connected</div>
+      <div class="fb-detail" id="fbDetail">Add your Firebase config to enable sync.</div>
+    </div>
+    <div class="fb-tag" id="fbTag">Local</div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="sect"><span class="mi s14">settings</span> Settings</div>
+
+  <div class="settings-card">
+    <div class="srow" onclick="togSetting('notif')">
+      <div class="s-icon"><span class="mi s18">notifications</span></div>
+      <div class="s-label">Notifications</div>
+      <div class="tog on" id="tog-notif"><div class="tog-knob"></div></div>
+    </div>
+    <div class="srow" onclick="togSetting('sync')">
+      <div class="s-icon"><span class="mi s18">sync</span></div>
+      <div class="s-label">Auto-sync</div>
+      <div class="tog on" id="tog-sync"><div class="tog-knob"></div></div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="srow">
+      <div class="s-icon"><span class="mi s18">travel_explore</span></div>
+      <div class="s-label">Server Region</div>
+      <div class="s-val">US East</div>
+      <span class="mi s16 s-chev">chevron_right</span>
+    </div>
+    <div class="srow">
+      <div class="s-icon"><span class="mi s18">vpn_key</span></div>
+      <div class="s-label">API Key</div>
+      <div class="s-val">Configured</div>
+      <span class="mi s16 s-chev">chevron_right</span>
+    </div>
+    <div class="srow" onclick="clearData()">
+      <div class="s-icon"><span class="mi s18">delete_outline</span></div>
+      <div class="s-label" style="color:var(--w30)">Clear Local Data</div>
+      <span class="mi s16 s-chev">chevron_right</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-txt">Hollow · v2.4.1 · <span id="buildDate"></span></div>
+  </div>
+
+</main>
+
+<script>
+  // ─── INIT LABELS ───
+  const nd = new Date();
+  document.getElementById('buildDate').textContent = nd.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+  document.getElementById('det-date').textContent  = nd.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('det-mo-lbl').textContent = nd.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('det-yr-lbl').textContent = nd.getFullYear().toString();
+  const wnum = (()=>{const d=new Date(),j=new Date(d.getFullYear(),0,1);return Math.ceil(((d-j)/86400000+j.getDay()+1)/7);})();
+  document.getElementById('det-wk-lbl').textContent = `Week ${wnum}, ${nd.getFullYear()}`;
+
+  // ─── SPARKLINE ───
+  let sparkData = Array(30).fill(0);
+  const sc = document.getElementById('sparkline');
+  const sx = sc.getContext('2d');
+
+  function drawSpark(data) {
+    const dpr = devicePixelRatio||1;
+    const w = sc.offsetWidth, h = 86;
+    sc.width = w*dpr; sc.height = h*dpr;
+    sx.scale(dpr,dpr); sx.clearRect(0,0,w,h);
+    const max = Math.max(...data, 1);
+    const pts = data.map((v,i)=>({x:(i/(data.length-1))*w, y:h-(v/max)*(h-14)-7}));
+
+    // gradient fill
+    const g = sx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'rgba(255,255,255,0.12)');
+    g.addColorStop(1,'rgba(255,255,255,0.0)');
+    sx.beginPath();
+    sx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
+    sx.lineTo(w,h); sx.lineTo(0,h); sx.closePath();
+    sx.fillStyle=g; sx.fill();
+
+    // glow line
+    sx.save(); sx.filter='blur(3px)';
+    sx.beginPath();
+    sx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
+    sx.strokeStyle='rgba(255,255,255,0.28)'; sx.lineWidth=2.5; sx.stroke();
+    sx.restore();
+
+    // crisp line
+    sx.beginPath();
+    sx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
+    sx.strokeStyle='rgba(255,255,255,0.8)'; sx.lineWidth=1.5; sx.stroke();
+
+    // tip
+    const lp=pts[pts.length-1];
+    sx.beginPath(); sx.arc(lp.x,lp.y,5,0,Math.PI*2);
+    sx.fillStyle='rgba(255,255,255,0.12)'; sx.fill();
+    sx.beginPath(); sx.arc(lp.x,lp.y,2.5,0,Math.PI*2);
+    sx.fillStyle='#fff'; sx.fill();
+  }
+
+  // ─── BAR CHART ───
+  function drawBar(t,w,m,y) {
+    const c=document.getElementById('barChart');
+    if(!c) return;
+    const ctx=c.getContext('2d');
+    const dpr=devicePixelRatio||1;
+    const cw=c.offsetWidth||360, ch=110;
+    c.width=cw*dpr; c.height=ch*dpr;
+    ctx.scale(dpr,dpr); ctx.clearRect(0,0,cw,ch);
+
+    const vals=[t,w,m,y], lbls=['Today','Week','Month','Year'];
+    const max=Math.max(...vals,1);
+    const colW=(cw-32)/vals.length;
+    const bw=Math.min(colW-18,52);
+
+    vals.forEach((v,i)=>{
+      const x=16+i*colW+(colW-bw)/2;
+      const bh=Math.max(((v||0)/max)*(ch-28),2);
+      const by=ch-bh-20;
+
+      // glow
+      ctx.save(); ctx.filter='blur(8px)';
+      ctx.fillStyle='rgba(255,255,255,0.08)';
+      ctx.beginPath(); ctx.roundRect(x,by,bw,bh,[4,4,0,0]); ctx.fill();
+      ctx.restore();
+
+      // fill
+      const bg=ctx.createLinearGradient(0,by,0,by+bh);
+      bg.addColorStop(0,'rgba(255,255,255,0.18)');
+      bg.addColorStop(1,'rgba(255,255,255,0.03)');
+      ctx.fillStyle=bg;
+      ctx.beginPath(); ctx.roundRect(x,by,bw,bh,[4,4,0,0]); ctx.fill();
+
+      // cap glow
+      ctx.save(); ctx.filter='blur(2px)';
+      ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.beginPath(); ctx.roundRect(x,by,bw,2.5,[2]); ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle='rgba(255,255,255,0.8)';
+      ctx.beginPath(); ctx.roundRect(x,by,bw,2,[2]); ctx.fill();
+
+      // label
+      ctx.fillStyle='rgba(255,255,255,0.22)';
+      ctx.font=`600 10px 'DM Sans',sans-serif`;
+      ctx.textAlign='center';
+      ctx.fillText(lbls[i],x+bw/2,ch-5);
+    });
+  }
+
+  // ─── UTILS ───
+  function fmt(n) {
+    if(n==null)return'—';
+    if(n>=1e6) return(n/1e6).toFixed(1)+'M';
+    if(n>=1e3) return(n/1e3).toFixed(1)+'K';
+    return Math.round(n).toLocaleString();
+  }
+
+  function fmtUp(s) {
+    const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+    return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function fmtUpShort(s) {
+    const m=Math.floor(s/60),sec=s%60;
+    if(m<60) return`${m}:${String(sec).padStart(2,'0')}`;
+    const h=Math.floor(m/60),rm=m%60;
+    return`${h}:${String(rm).padStart(2,'0')}`;
+  }
+
+  function upd(id,val) {
+    const el=document.getElementById(id);
+    if(!el) return;
+    const str=String(val);
+    if(el.textContent===str) return;
+    el.textContent=str;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+    setTimeout(()=>el.classList.remove('pop'),380);
+  }
+
+  // ─── CALLBACKS ───
+  window.__dash = function(s) {
+    upd('activeNow',   fmt(s.activeNow));
+    upd('peakToday',   fmt(s.peakToday));
+    upd('peakAlltime', fmt(s.peakAlltime));
+    upd('statToday',   fmt(s.today));
+    upd('statWeek',    fmt(s.week));
+    upd('statMonth',   fmt(s.month));
+    upd('statAlltime', fmt(s.alltime));
+    upd('det-today',   fmt(s.today));
+    upd('det-week',    fmt(s.week));
+    upd('det-month',   fmt(s.month));
+    upd('det-year',    fmt(s.year));
+    upd('det-alltime', fmt(s.alltime));
+
+    sparkData = s.sparkData.slice();
+    drawSpark(sparkData);
+    drawBar(s.today,s.week,s.month,s.year);
+
+    const sl=document.getElementById('syncLabel');
+    if(s.firebaseConnected && s.lastSync) {
+      sl.textContent=`Synced ${new Date(s.lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    } else if(s.firebaseConnected) {
+      sl.textContent='Connecting to Firebase…';
+    } else {
+      sl.textContent='Local mode · add Firebase config to sync';
+    }
+  };
+
+  window.__uptimeTick = function(s) {
+    document.getElementById('uptimeDisp').textContent = fmtUp(s);
+    document.getElementById('uptimeHero').textContent = fmtUpShort(s);
+  };
+
+  window.__fbStatus = function(ok) {
+    document.getElementById('fbDot').className  = 'fb-dot'+(ok?' on':'');
+    document.getElementById('dbDot').className  = 'sdot'+(ok?' on':' off');
+    document.getElementById('fbHead').textContent   = ok ? 'Firebase Connected'  : 'Not Connected';
+    document.getElementById('fbDetail').textContent = ok ? 'Real-time cloud sync active.' : 'Add your Firebase config to enable sync.';
+    const tag = document.getElementById('fbTag');
+    tag.textContent = ok ? 'Live' : 'Local';
+    tag.className   = 'fb-tag'+(ok?' on':'');
+    document.getElementById('fbIcon').textContent = ok ? 'cloud_done' : 'cloud_off';
+  };
+
+  // ─── VIEW SWITCH ───
+  function setView(name, btn) {
+    ['periods','chart','details'].forEach(v=>{
+      document.getElementById('view-'+v).style.display = v===name?'':'none';
+    });
+    document.querySelectorAll('.seg').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    if(name==='chart') {
+      const s=window.__getState?.()??{};
+      setTimeout(()=>drawBar(s.today,s.week,s.month,s.year),30);
+    }
+  }
+
+  // ─── RANGE ───
+  function setRange(r,btn) {
+    document.querySelectorAll('.rpill').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    drawSpark(sparkData);
+  }
+
+  // ─── TOGGLES ───
+  const togState = {notif:true, sync:true};
+  function togSetting(k) {
+    togState[k] = !togState[k];
+    document.getElementById('tog-'+k).classList.toggle('on', togState[k]);
+  }
+
+  // ─── CLEAR DATA ───
+  function clearData() {
+    if(confirm('Clear all local cached stats?')) {
+      localStorage.removeItem('hollow_v2');
+      location.reload();
+    }
+  }
+
+  // ─── BOOT ───
+  drawSpark(sparkData);
+  window.addEventListener('resize', ()=>drawSpark(sparkData));
+</script>
+</body>
+</html>
