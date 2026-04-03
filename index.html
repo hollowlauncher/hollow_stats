@@ -25,15 +25,19 @@
       measurementId: "G-W6DM9YCQM4"
     };
 
-    const today    = new Date().toISOString().slice(0,10);
-    const monthKey = new Date().toISOString().slice(0,7);
-    const yearKey  = String(new Date().getFullYear());
-    function getWeekKey() {
-      const d=new Date(), j=new Date(d.getFullYear(),0,1);
-      const w=Math.ceil(((d-j)/86400000+j.getDay()+1)/7);
-      return `${d.getFullYear()}-W${String(w).padStart(2,'0')}`;
+    // ── How old a heartbeat can be and still count as "active" ──
+    const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+    // Compute period start timestamps (local time)
+    function boundaries() {
+      const now = new Date();
+      const todayStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const dow         = (now.getDay() + 6) % 7; // Mon=0
+      const weekStart   = todayStart - dow * 86400000;
+      const monthStart  = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      const yearStart   = new Date(now.getFullYear(), 0, 1).getTime();
+      return { todayStart, weekStart, monthStart, yearStart };
     }
-    const weekKey = getWeekKey();
 
     let state = {
       activeNow: 0, peakToday: 0, peakAlltime: 0,
@@ -41,6 +45,11 @@
       uptime: 0, sparkData: Array(30).fill(0),
       firebaseConnected: false, lastSync: null
     };
+
+    // Rolling spark history — one entry per Firebase update
+    const sparkHistory = Array(30).fill(0);
+    // Session-scoped peak (best effort without server-side storage)
+    let peakSession = 0;
 
     let db = null;
     try {
@@ -52,7 +61,7 @@
     }
 
     function init() {
-      // Uptime ticker (local — just counts time on this page)
+      // Uptime ticker
       setInterval(() => {
         state.uptime++;
         window.__uptimeTick?.(state.uptime);
@@ -64,42 +73,44 @@
         return;
       }
 
-      // ── Real-time listener on the entire stats node ──
-      onValue(ref(db, 'stats'), (snap) => {
-        if (!snap.exists()) {
-          window.__fbStatus?.(false);
-          window.__dash?.(state);
-          return;
+      // ── Real-time listener on /players ──
+      // Schema: { sessionId: lastHeartbeatTimestamp (ms), ... }
+      onValue(ref(db, 'players'), (snap) => {
+        const now = Date.now();
+        const { todayStart, weekStart, monthStart, yearStart } = boundaries();
+
+        let activeNow = 0, today = 0, week = 0, month = 0, year = 0, alltime = 0;
+
+        if (snap.exists()) {
+          snap.forEach(child => {
+            const ts = child.val();
+            if (typeof ts !== 'number') return;
+            alltime++;
+            if (ts >= yearStart)  year++;
+            if (ts >= monthStart) month++;
+            if (ts >= weekStart)  week++;
+            if (ts >= todayStart) today++;
+            if (now - ts <= ACTIVE_WINDOW_MS) activeNow++;
+          });
         }
 
-        const d = snap.val();
+        // Update session peak
+        if (activeNow > peakSession) peakSession = activeNow;
 
-        // Live players
-        if (d.live) {
-          state.activeNow  = d.live.activeNow  ?? 0;
-          state.peakToday  = d.live.peakToday  ?? 0;
-          state.peakAlltime= d.live.peakAlltime ?? 0;
-        }
+        // Roll spark window
+        sparkHistory.shift();
+        sparkHistory.push(activeNow);
 
-        // Period session counts
-        if (d.daily?.[today])      { state.today = d.daily[today].sessions ?? 0; }
-        if (d.weekly?.[weekKey])   { state.week  = d.weekly[weekKey].sessions ?? 0; }
-        if (d.monthly?.[monthKey]) { state.month = d.monthly[monthKey].sessions ?? 0; }
-        if (d.yearly?.[yearKey])   { state.year  = d.yearly[yearKey].sessions ?? 0; }
-        if (d.alltime)             { state.alltime = d.alltime.sessions ?? 0; }
-
-        // Spark history — expects stats/spark to be an array of up to 30 active-player samples
-        // written by your game server. Falls back to zeros if not present.
-        if (Array.isArray(d.spark)) {
-          const arr = d.spark.slice(-30);
-          state.sparkData = [...Array(30 - arr.length).fill(0), ...arr];
-        } else {
-          // build a rolling window from activeNow if no dedicated spark data
-          state.sparkData = [...state.sparkData.slice(1), state.activeNow];
-        }
-
-        state.firebaseConnected = true;
-        state.lastSync = Date.now();
+        state = {
+          ...state,
+          activeNow,
+          peakToday:   peakSession,
+          peakAlltime: peakSession,
+          today, week, month, year, alltime,
+          sparkData: sparkHistory.slice(),
+          firebaseConnected: true,
+          lastSync: now
+        };
 
         window.__fbStatus?.(true);
         window.__dash?.(state);
