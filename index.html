@@ -1,1143 +1,552 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Hollow Launcher</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Hollow · Dashboard</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-  <style>
-    /* ── M3 DESIGN TOKENS — OLED DARK SCHEME ── */
-    :root {
-      /* OLED surfaces */
-      --md-sys-color-background:         #000000;
-      --md-sys-color-surface:            #000000;
-      --md-sys-color-surface-container-lowest: #000000;
-      --md-sys-color-surface-container-low:    #0d0d0d;
-      --md-sys-color-surface-container:        #121212;
-      --md-sys-color-surface-container-high:   #1a1a1a;
-      --md-sys-color-surface-container-highest: #222222;
-      --md-sys-color-surface-variant:    #1e1e1e;
-      --md-sys-color-outline:            #2e2e2e;
-      --md-sys-color-outline-variant:    #1f1f1f;
-
-      /* Primary — M3 teal-green */
-      --md-sys-color-primary:            #6DD5A0;
-      --md-sys-color-on-primary:         #003828;
-      --md-sys-color-primary-container:  #00522f;
-      --md-sys-color-on-primary-container: #8DF2BB;
-
-      /* Secondary */
-      --md-sys-color-secondary:          #81C9B4;
-      --md-sys-color-on-secondary:       #003829;
-      --md-sys-color-secondary-container:#0b4a37;
-      --md-sys-color-on-secondary-container:#9de5cf;
-
-      /* Tertiary — soft amber */
-      --md-sys-color-tertiary:           #F5C16C;
-      --md-sys-color-tertiary-container: #4a3800;
-      --md-sys-color-on-tertiary-container:#FFE0A2;
-
-      /* Error */
-      --md-sys-color-error:              #FFB4AB;
-      --md-sys-color-error-container:    #93000a;
-
-      /* On-colors */
-      --md-sys-color-on-background:      #E6E1E5;
-      --md-sys-color-on-surface:         #E6E1E5;
-      --md-sys-color-on-surface-variant: #CAC4D0;
-
-      /* State layers */
-      --md-state-hover:   rgba(110,213,160,0.08);
-      --md-state-pressed: rgba(110,213,160,0.12);
-      --md-state-focused: rgba(110,213,160,0.12);
-
-      /* Elevation tones (M3 uses tonal color on top of black) */
-      --md-elevation-1: rgba(110,213,160,0.05);
-      --md-elevation-2: rgba(110,213,160,0.08);
-      --md-elevation-3: rgba(110,213,160,0.11);
-
-      /* Typography */
-      --md-font-display: 'Google Sans Display', sans-serif;
-      --md-font-body:    'Google Sans', sans-serif;
-      --md-font-mono:    'Roboto Mono', monospace;
-
-      /* Shape */
-      --md-shape-extra-large: 28px;
-      --md-shape-large:       16px;
-      --md-shape-medium:      12px;
-      --md-shape-small:       8px;
-      --md-shape-full:        50px;
-    }
-
-    /* ── RESET ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    /* ── BASE ── */
-    body {
-      font-family: var(--md-font-body);
-      background: var(--md-sys-color-background);
-      color: var(--md-sys-color-on-background);
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ── MATERIAL ICON UTILITY ── */
-    .icon {
-      font-family: 'Material Symbols Rounded';
-      font-size: 20px;
-      font-weight: 400;
-      font-style: normal;
-      line-height: 1;
-      letter-spacing: normal;
-      text-transform: none;
-      white-space: nowrap;
-      word-wrap: normal;
-      direction: ltr;
-      font-feature-settings: 'liga';
-      -webkit-font-smoothing: antialiased;
-      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-    }
-
-    .icon.outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-    }
-
-    .icon.sz24 { font-size: 24px; }
-    .icon.sz18 { font-size: 18px; }
-
-    /* ── TOP APP BAR (M3 Center-aligned) ── */
-    .top-app-bar {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: var(--md-sys-color-surface);
-      background-color: color-mix(in srgb, var(--md-sys-color-surface-container-low) 100%, transparent);
-      border-bottom: 1px solid var(--md-sys-color-outline-variant);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 16px;
-      height: 64px;
-    }
-
-    .app-bar-leading {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .app-bar-logo {
-      width: 40px; height: 40px;
-      border-radius: var(--md-shape-medium);
-      background: var(--md-sys-color-primary-container);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--md-sys-color-on-primary-container);
-    }
-
-    .app-bar-title {
-      font-family: var(--md-font-display);
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--md-sys-color-on-surface);
-      margin-left: 8px;
-    }
-
-    /* M3 Assist Chip */
-    .m3-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      height: 32px;
-      padding: 0 12px;
-      border-radius: var(--md-shape-full);
-      border: 1px solid var(--md-sys-color-outline);
-      background: transparent;
-      color: var(--md-sys-color-on-surface-variant);
-      font-family: var(--md-font-body);
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: 0.01em;
-      cursor: default;
-    }
-
-    .m3-chip.tonal {
-      background: var(--md-sys-color-secondary-container);
-      border-color: transparent;
-      color: var(--md-sys-color-on-secondary-container);
-    }
-
-    .m3-chip .icon { font-size: 18px; }
-
-    /* ── LIVE INDICATOR ── */
-    .live-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--md-sys-color-primary);
-      box-shadow: 0 0 8px var(--md-sys-color-primary);
-      animation: live-pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes live-pulse {
-      0%,100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px var(--md-sys-color-primary); }
-      50%      { opacity: 0.5; transform: scale(0.75); box-shadow: 0 0 4px var(--md-sys-color-primary); }
-    }
-
-    /* ── HERO ── */
-    .hero {
-      position: relative;
-      padding: 56px 24px 48px;
-      text-align: center;
-      overflow: hidden;
-    }
-
-    /* Radial glow backdrop */
-    .hero::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 70% 60% at 50% 0%, rgba(109,213,160,0.10) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 40% at 80% 100%, rgba(129,201,180,0.06) 0%, transparent 60%);
-      pointer-events: none;
-    }
-
-    /* Subtle grid overlay */
-    .hero::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(109,213,160,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(109,213,160,0.03) 1px, transparent 1px);
-      background-size: 32px 32px;
-      mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, black 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .hero-inner {
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-label {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--md-sys-color-primary);
-      margin-bottom: 14px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(109,213,160,0.08);
-      border: 1px solid rgba(109,213,160,0.18);
-      border-radius: var(--md-shape-full);
-      padding: 5px 14px;
-    }
-
-    .hero-label .icon { font-size: 15px; }
-
-    .hero h1 {
-      font-family: var(--md-font-display);
-      font-size: clamp(2.2rem, 6vw, 3.6rem);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      line-height: 1.06;
-      color: var(--md-sys-color-on-surface);
-      margin-bottom: 14px;
-    }
-
-    .hero h1 .hero-accent {
-      color: var(--md-sys-color-primary);
-      position: relative;
-    }
-
-    /* Underline shimmer on accent word */
-    .hero h1 .hero-accent::after {
-      content: '';
-      position: absolute;
-      left: 0; right: 0;
-      bottom: -4px;
-      height: 2px;
-      border-radius: 2px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        var(--md-sys-color-primary) 40%,
-        var(--md-sys-color-secondary) 60%,
-        transparent 100%);
-      animation: shimmer-line 3s ease-in-out infinite;
-    }
-
-    @keyframes shimmer-line {
-      0%,100% { opacity: 0.5; transform: scaleX(0.7); }
-      50%      { opacity: 1;   transform: scaleX(1); }
-    }
-
-    .hero-sub {
-      font-size: 15px;
-      color: var(--md-sys-color-on-surface-variant);
-      letter-spacing: 0.01em;
-      line-height: 1.6;
-      max-width: 480px;
-      margin: 0 auto 28px;
-    }
-
-    .hero-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    .hero-stat-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      height: 36px;
-      padding: 0 14px;
-      border-radius: var(--md-shape-full);
-      background: var(--md-sys-color-surface-container);
-      border: 1px solid var(--md-sys-color-outline);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--md-sys-color-on-surface-variant);
-      letter-spacing: 0.01em;
-    }
-
-    .hero-stat-chip .icon {
-      font-size: 16px;
-      color: var(--md-sys-color-primary);
-    }
-
-    .hero-stat-chip strong {
-      color: var(--md-sys-color-on-surface);
-      font-weight: 600;
-    }
-
-    /* Hero bottom divider with glow */
-    .hero-divider {
-      height: 1px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        var(--md-sys-color-outline) 20%,
-        rgba(109,213,160,0.25) 50%,
-        var(--md-sys-color-outline) 80%,
-        transparent 100%);
-      margin: 0;
-    }
-
-    /* Fade-in entrance */
-    .hero-inner { animation: hero-enter 0.5s cubic-bezier(0.22,1,0.36,1) both; }
-
-    @keyframes hero-enter {
-      from { opacity: 0; transform: translateY(14px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── LAYOUT ── */
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 24px 16px 80px;
-    }
-
-    /* ── M3 CARD ── */
-    .m3-card {
-      background: var(--md-sys-color-surface-container-low);
-      border-radius: var(--md-shape-extra-large);
-      overflow: hidden;
-      position: relative;
-      transition: background 200ms ease;
-    }
-
-    .m3-card::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--md-elevation-1);
-      border-radius: inherit;
-      pointer-events: none;
-    }
-
-    .m3-card:hover {
-      background: var(--md-sys-color-surface-container);
-    }
-
-    .m3-card.elevated {
-      background: var(--md-sys-color-surface-container-low);
-      border: 1px solid var(--md-sys-color-outline-variant);
-    }
-
-    .m3-card.filled {
-      background: var(--md-sys-color-surface-container-high);
-      border: none;
-    }
-
-    .m3-card.tonal-primary {
-      background: var(--md-sys-color-primary-container);
-    }
-
-    /* ── STAT GRID ── */
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    @media (min-width: 640px) {
-      .stat-grid { grid-template-columns: repeat(4, 1fr); }
-    }
-
-    .stat-card {
-      padding: 20px;
-    }
-
-    .stat-card-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--md-sys-color-on-surface-variant);
-      margin-bottom: 14px;
-    }
-
-    .stat-card-label .icon {
-      font-size: 18px;
-      color: var(--md-sys-color-primary);
-    }
-
-    .stat-card-value {
-      font-family: var(--md-font-mono);
-      font-size: 2.8rem;
-      font-weight: 500;
-      line-height: 1;
-      letter-spacing: -0.03em;
-      color: var(--md-sys-color-on-surface);
-      margin-bottom: 6px;
-    }
-
-    .stat-card-value.primary { color: var(--md-sys-color-primary); }
-    .stat-card-value.secondary { color: var(--md-sys-color-secondary); }
-    .stat-card-value.tertiary { color: var(--md-sys-color-tertiary); }
-
-    .stat-card-caption {
-      font-size: 12px;
-      color: var(--md-sys-color-on-surface-variant);
-      letter-spacing: 0.01em;
-    }
-
-    .stat-card-caption strong {
-      color: var(--md-sys-color-on-surface);
-      font-weight: 500;
-    }
-
-    /* ── TIME CARD ── */
-    .time-card { padding: 20px; }
-
-    .time-value {
-      font-family: var(--md-font-mono);
-      font-size: 1.6rem;
-      font-weight: 500;
-      color: var(--md-sys-color-on-surface);
-      margin-bottom: 14px;
-      letter-spacing: -0.01em;
-    }
-
-    /* M3 Linear Progress */
-    .m3-progress-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 4px;
-    }
-
-    .m3-progress-label {
-      font-size: 12px;
-      color: var(--md-sys-color-on-surface-variant);
-      white-space: nowrap;
-    }
-
-    .m3-linear-progress {
-      flex: 1;
-      height: 4px;
-      border-radius: 2px;
-      background: var(--md-sys-color-outline-variant);
-      overflow: hidden;
-    }
-
-    .m3-linear-progress-indicator {
-      height: 100%;
-      width: 100%;
-      background: var(--md-sys-color-primary);
-      border-radius: 2px;
-      transform-origin: left;
-      animation: m3-progress 3s linear infinite;
-    }
-
-    @keyframes m3-progress {
-      from { transform: scaleX(1); }
-      to   { transform: scaleX(0); }
-    }
-
-    /* ── CHART CARD ── */
-    .chart-card {
-      padding: 20px 20px 12px;
-      margin-bottom: 16px;
-    }
-
-    .chart-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
-    .chart-card-title {
-      font-family: var(--md-font-display);
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--md-sys-color-on-surface);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .chart-card-title .icon {
-      color: var(--md-sys-color-primary);
-      font-size: 20px;
-    }
-
-    .chart-legend-chip {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--md-sys-color-on-surface-variant);
-      background: var(--md-sys-color-surface-container-high);
-      border-radius: var(--md-shape-full);
-      padding: 4px 10px;
-    }
-
-    .chart-legend-chip::before {
-      content: '';
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--md-sys-color-primary);
-    }
-
-    .chart-wrap {
-      position: relative;
-      height: 130px;
-    }
-
-    canvas#sparkline { width: 100% !important; height: 130px !important; }
-
-    .chart-time-row {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 8px;
-      font-family: var(--md-font-mono);
-      font-size: 10px;
-      color: var(--md-sys-color-on-surface-variant);
-      opacity: 0.6;
-    }
-
-    /* ── BOTTOM GRID ── */
-    .bottom-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    @media (min-width: 600px) {
-      .bottom-grid { grid-template-columns: 1fr 1fr; }
-    }
-
-    .section-card { padding: 20px; }
-
-    .section-card-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--md-sys-color-on-surface);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-
-    .section-card-title .icon {
-      color: var(--md-sys-color-primary);
-    }
-
-    /* ── M3 LIST ITEM ── */
-    .m3-list-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: var(--md-shape-large);
-      margin-bottom: 4px;
-      background: var(--md-sys-color-surface-container);
-      transition: background 150ms ease;
-    }
-
-    .m3-list-item:hover { background: var(--md-sys-color-surface-container-high); }
-
-    .m3-list-icon-wrap {
-      width: 40px; height: 40px;
-      border-radius: var(--md-shape-medium);
-      background: var(--md-sys-color-surface-container-high);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      color: var(--md-sys-color-on-surface-variant);
-    }
-
-    .m3-list-icon-wrap.primary {
-      background: var(--md-sys-color-primary-container);
-      color: var(--md-sys-color-on-primary-container);
-    }
-
-    .m3-list-content { flex: 1; min-width: 0; }
-
-    .m3-list-headline {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--md-sys-color-on-surface);
-      letter-spacing: 0.01em;
-    }
-
-    .m3-list-supporting {
-      font-size: 12px;
-      color: var(--md-sys-color-on-surface-variant);
-      margin-top: 1px;
-    }
-
-    .m3-list-trailing {
-      font-family: var(--md-font-mono);
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--md-sys-color-on-surface-variant);
-      text-align: right;
-      flex-shrink: 0;
-    }
-
-    .m3-list-trailing.online  { color: var(--md-sys-color-primary); }
-    .m3-list-trailing.warning { color: var(--md-sys-color-tertiary); }
-    .m3-list-trailing.error   { color: var(--md-sys-color-error); }
-
-    /* Status badge */
-    .status-badge {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .status-badge.online  { background: var(--md-sys-color-primary); box-shadow: 0 0 8px var(--md-sys-color-primary); }
-    .status-badge.checking { background: var(--md-sys-color-tertiary); animation: live-pulse 1s infinite; }
-    .status-badge.offline { background: var(--md-sys-color-error); }
-
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--md-sys-color-outline-variant);
-      padding: 20px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .footer-brand {
-      font-size: 13px;
-      color: var(--md-sys-color-on-surface-variant);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .footer-brand .icon { color: var(--md-sys-color-primary); font-size: 18px; }
-
-    .footer-links {
-      display: flex;
-      gap: 4px;
-    }
-
-    .footer-link {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      height: 36px;
-      padding: 0 12px;
-      border-radius: var(--md-shape-full);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--md-sys-color-on-surface-variant);
-      text-decoration: none;
-      transition: background 150ms ease, color 150ms ease;
-    }
-
-    .footer-link:hover {
-      background: var(--md-state-hover);
-      color: var(--md-sys-color-primary);
-    }
-
-    .footer-link .icon { font-size: 16px; }
-
-    /* ── NUMBER ANIMATE ── */
-    .pop { animation: m3-pop 0.28s cubic-bezier(0.34,1.56,0.64,1); }
-
-    @keyframes m3-pop {
-      0%  { transform: scale(0.85); opacity: 0.5; }
-      100%{ transform: scale(1);    opacity: 1; }
-    }
-
-    /* ── SKELETON ── */
-    .skeleton {
-      background: linear-gradient(90deg,
-        var(--md-sys-color-surface-container) 25%,
-        var(--md-sys-color-surface-container-high) 50%,
-        var(--md-sys-color-surface-container) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      border-radius: 8px;
-      height: 1em;
-    }
-
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-
-    /* ── M3 DIVIDER ── */
-    .m3-divider {
-      height: 1px;
-      background: var(--md-sys-color-outline-variant);
-      margin: 4px 0 12px;
-    }
-  </style>
-</head>
-<body>
-
-<!-- ══════════════════════════════ TOP APP BAR ══ -->
-<header class="top-app-bar">
-  <div class="app-bar-leading">
-    <div class="app-bar-logo">
-      <span class="icon sz24">hub</span>
-    </div>
-    <span class="app-bar-title">Hollow Launcher</span>
-  </div>
-
-  <div class="m3-chip tonal">
-    <div class="live-dot"></div>
-    Live
-  </div>
-</header>
-
-<!-- ══════════════════════════════ HERO HEADER ══ -->
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-label">
-      <span class="icon">hub</span>
-      Hollow Launcher · Dashboard
-    </div>
-
-    <h1>
-      <span class="hero-accent">Launcher</span><br>Activity Monitor
-    </h1>
-
-  
-
-    <div class="hero-chips">
-      <div class="hero-stat-chip">
-        <span class="icon">bolt</span>
-        Auto-refresh <strong>3s</strong>
-      </div>
-      <div class="hero-stat-chip">
-        <span class="icon">timer</span>
-        Active in last <strong>60s</strong>
-      </div>
-      <div class="hero-stat-chip">
-        <span class="icon">database</span>
-        Firebase <strong>asia-southeast1</strong>
-      </div>
-      <div class="hero-stat-chip">
-        <span class="icon">show_chart</span>
-        Last <strong>2 min</strong> history
-      </div>
-    </div>
-  </div>
-</section>
-<div class="hero-divider"></div>
-
-<!-- ══════════════════════════════ CONTENT ══ -->
-<div class="container">
-
-  <!-- STAT CARDS -->
-  <div class="stat-grid">
-
-    <!-- Online Now -->
-    <div class="m3-card elevated stat-card">
-      <div class="stat-card-label">
-        <span class="icon">wifi_tethering</span>
-        Online
-      </div>
-      <div class="stat-card-value primary" id="count">—</div>
-      <div class="stat-card-caption">Active in last <strong>60s</strong></div>
-    </div>
-
-    <!-- Peak -->
-    <div class="m3-card elevated stat-card">
-      <div class="stat-card-label">
-        <span class="icon">trending_up</span>
-        Peak Today
-      </div>
-      <div class="stat-card-value secondary" id="peak">—</div>
-      <div class="stat-card-caption">At <strong id="peak-time">—</strong></div>
-    </div>
-
-    <!-- Total -->
-    <div class="m3-card elevated stat-card">
-      <div class="stat-card-label">
-        <span class="icon">group</span>
-        Unique Slots
-      </div>
-      <div class="stat-card-value tertiary" id="total">—</div>
-      <div class="stat-card-caption">Entries in <strong>database</strong></div>
-    </div>
-
-    <!-- Last Update -->
-    <div class="m3-card elevated stat-card time-card">
-      <div class="stat-card-label">
-        <span class="icon">update</span>
-        Updated
-      </div>
-      <div class="time-value" id="last-update">—</div>
-      <div class="m3-progress-row">
-        <span class="m3-progress-label">Next in 3s</span>
-        <div class="m3-linear-progress">
-          <div class="m3-linear-progress-indicator"></div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- CHART CARD -->
-  <div class="m3-card elevated chart-card">
-    <div class="chart-card-header">
-      <div class="chart-card-title">
-        <span class="icon">ssid_chart</span>
-        Activity — Last 2 Minutes
-      </div>
-      <div class="chart-legend-chip">Online count</div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="sparkline"></canvas>
-    </div>
-    <div class="chart-time-row">
-      <span>2m ago</span><span>90s</span><span>60s</span><span>30s</span><span>Now</span>
-    </div>
-  </div>
-
-  <!-- BOTTOM GRID -->
-  <div class="bottom-grid">
-
-    <!-- Service Health -->
-    <div class="m3-card elevated section-card">
-      <div class="section-card-title">
-        <span class="icon">health_and_safety</span>
-        Service Health
-      </div>
-
-      <div class="m3-list-item">
-        <div class="m3-list-icon-wrap">
-          <span class="icon sz18">database</span>
-        </div>
-        <div class="m3-list-content">
-          <div class="m3-list-headline">Firebase Realtime DB</div>
-          <div class="m3-list-supporting">asia-southeast1</div>
-        </div>
-        <div class="m3-list-trailing" id="api-latency">—</div>
-        <div class="status-badge checking" id="api-indicator"></div>
-      </div>
-
-      <div class="m3-list-item">
-        <div class="m3-list-icon-wrap">
-          <span class="icon sz18">person_search</span>
-        </div>
-        <div class="m3-list-content">
-          <div class="m3-list-headline">Player Tracking</div>
-          <div class="m3-list-supporting" id="data-status">checking…</div>
-        </div>
-        <div class="m3-list-trailing" id="data-status-trail">—</div>
-        <div class="status-badge checking" id="data-indicator"></div>
-      </div>
-
-      <div class="m3-list-item">
-        <div class="m3-list-icon-wrap primary">
-          <span class="icon sz18">bar_chart_4_bars</span>
-        </div>
-        <div class="m3-list-content">
-          <div class="m3-list-headline">Stats Dashboard</div>
-          <div class="m3-list-supporting">This page</div>
-        </div>
-        <div class="m3-list-trailing online">Operational</div>
-        <div class="status-badge online"></div>
-      </div>
-    </div>
-
-    <!-- Session Summary -->
-    <div class="m3-card elevated section-card">
-      <div class="section-card-title">
-        <span class="icon">analytics</span>
-        Session Summary
-      </div>
-
-      <div class="m3-list-item">
-        <div class="m3-list-icon-wrap">
-          <span class="icon sz18">schedule</span>
-        </div>
-        <div class="m3-list-content">
-          <div class="m3-list-headline">Session Started</div>
-          <div class="m3-list-supporting">Current session</div>
-        </div>
-        <div class="m3-list-trailing" id="session-start">—</div>
-      </div>
-
-      <div class="m3-list-item">
-        <div class="m3-list-icon-wrap">
-          <span class="icon sz18">refresh</span>
-        </div>
-        <div class="m3-list-content">
-          <div class="m3-list-headline">Total Refreshes</div>
-          <div class="m3-list-supporting">Since session start</div>
-        </div>
-        <div class="m3-list-trailing" id="refresh-count">0</div>
-      </div>
-
-      <div class="m3-list-item">
-        <div class="m3-list-icon-wrap primary">
-          <span class="icon sz18">query_stats</span>
-        </div>
-        <div class="m3-list-content">
-          <div class="m3-list-headline">Avg. Players</div>
-          <div class="m3-list-supporting">Session average</div>
-        </div>
-        <div class="m3-list-trailing online" id="avg-count">—</div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ══════════════════════════════ FOOTER ══ -->
-<footer>
-  <div class="footer-brand">
-    <span class="icon">hub</span>
-    Hollow Launcher · Live Stats
-  </div>
-  <div class="footer-links">
-    <a href="#" class="footer-link">
-      <span class="icon">forum</span>Discord
-    </a>
-    <a href="#" class="footer-link">
-      <span class="icon">code</span>GitHub
-    </a>
-    <a href="#" class="footer-link">
-      <span class="icon">signal_cellular_alt</span>Status
-    </a>
-  </div>
-</footer>
-
-<script>
-  const API = "https://hollow-launcher-api-default-rtdb.asia-southeast1.firebasedatabase.app/players.json";
-
-  // State
-  let peakCount = 0;
-  let peakTime = null;
-  let totalRefreshes = 0;
-  let sumCounts = 0;
-  const sessionStart = new Date();
-  const history = [];
-  const MAX_HISTORY = 40;
-
-  // DOM
-  const $count        = document.getElementById("count");
-  const $peak         = document.getElementById("peak");
-  const $peakTime     = document.getElementById("peak-time");
-  const $total        = document.getElementById("total");
-  const $lastUpdate   = document.getElementById("last-update");
-  const $apiInd       = document.getElementById("api-indicator");
-  const $apiLat       = document.getElementById("api-latency");
-  const $dataInd      = document.getElementById("data-indicator");
-  const $dataStat     = document.getElementById("data-status");
-  const $dataTrail    = document.getElementById("data-status-trail");
-  const $refreshCount = document.getElementById("refresh-count");
-  const $avgCount     = document.getElementById("avg-count");
-  const $sessionStart = document.getElementById("session-start");
-
-  $sessionStart.textContent = sessionStart.toLocaleTimeString();
-
-  // ── CHART ──
-  const canvas = document.getElementById("sparkline");
-  const ctx = canvas.getContext("2d");
-
-  function resizeCanvas() {
-    canvas.width  = canvas.offsetWidth  * devicePixelRatio;
-    canvas.height = canvas.offsetHeight * devicePixelRatio;
-    ctx.scale(devicePixelRatio, devicePixelRatio);
-    drawChart();
-  }
-
-  function drawChart() {
-    const W = canvas.offsetWidth;
-    const H = canvas.offsetHeight;
-    ctx.clearRect(0, 0, W, H);
-    if (history.length < 2) return;
-
-    const counts = history.map(h => h.count);
-    const maxV = Math.max(...counts, 1);
-    const minV = Math.min(...counts);
-
-    const pts = history.map((h, i) => ({
-      x: (i / (history.length - 1)) * W,
-      y: H - ((h.count - minV) / (maxV - minV + 0.001)) * (H - 10) - 5
-    }));
-
-    // Gradient fill
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "rgba(109,213,160,0.20)");
-    grad.addColorStop(1, "rgba(109,213,160,0.00)");
-
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      const cpx = (pts[i-1].x + pts[i].x) / 2;
-      ctx.bezierCurveTo(cpx, pts[i-1].y, cpx, pts[i].y, pts[i].x, pts[i].y);
-    }
-    ctx.lineTo(W, H);
-    ctx.lineTo(0, H);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // Line
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      const cpx = (pts[i-1].x + pts[i].x) / 2;
-      ctx.bezierCurveTo(cpx, pts[i-1].y, cpx, pts[i].y, pts[i].x, pts[i].y);
-    }
-    ctx.strokeStyle = "#6DD5A0";
-    ctx.lineWidth   = 2;
-    ctx.lineJoin    = "round";
-    ctx.stroke();
-
-    // End dot — M3 style
-    const last = pts[pts.length - 1];
-    ctx.beginPath();
-    ctx.arc(last.x, last.y, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#6DD5A0";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(last.x, last.y, 8, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(109,213,160,0.3)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Grid lines
-    ctx.setLineDash([3, 5]);
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
-    ctx.lineWidth = 1;
-    [0.25, 0.5, 0.75].forEach(f => {
-      const y = H * f;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    });
-    ctx.setLineDash([]);
-  }
-
-  window.addEventListener("resize", resizeCanvas);
-  setTimeout(resizeCanvas, 100);
-
-  // ── ANIMATE ──
-  function animateValue(el, val) {
-    if (el.textContent === String(val)) return;
-    el.textContent = val;
-    el.classList.remove("pop");
-    void el.offsetWidth;
-    el.classList.add("pop");
-  }
-
-  // ── FETCH ──
-  async function updateCount() {
-    const t0 = Date.now();
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+    // ── Replace with your Firebase project config ──
+    const firebaseConfig = {
+      apiKey: "AIzaSyDEMO_REPLACE_WITH_YOUR_KEY",
+      authDomain: "hollow-launcher.firebaseapp.com",
+      databaseURL: "https://hollow-launcher-default-rtdb.firebaseio.com",
+      projectId: "hollow-launcher",
+      storageBucket: "hollow-launcher.appspot.com",
+      messagingSenderId: "000000000000",
+      appId: "1:000000000000:web:0000000000000000"
+    };
+
+    let db = null, fbReady = false;
     try {
-      const res  = await fetch(API);
-      const lat  = Date.now() - t0;
-      const data = await res.json();
-      const now  = Date.now();
+      const app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+      fbReady = true;
+    } catch(e) { console.warn('[Firebase] running local-only'); }
 
-      const vals   = Object.values(data || {});
-      const active = vals.filter(t => now - t < 60000).length;
-      const total  = vals.length;
-
-      // API health
-      $apiInd.className = "status-badge online";
-      $apiLat.textContent = lat + " ms";
-      $apiLat.className = "m3-list-trailing " +
-        (lat < 300 ? "online" : lat < 700 ? "warning" : "error");
-
-      $dataInd.className = "status-badge online";
-      $dataStat.textContent = total + " entries";
-      $dataTrail.textContent = "Active";
-      $dataTrail.className = "m3-list-trailing online";
-
-      // Numbers
-      animateValue($count, active);
-      animateValue($total, total);
-
-      if (active >= peakCount) {
-        peakCount = active;
-        peakTime  = new Date();
-        $peakTime.textContent = peakTime.toLocaleTimeString();
-      }
-      animateValue($peak, peakCount);
-
-      totalRefreshes++;
-      sumCounts += active;
-      $refreshCount.textContent = totalRefreshes;
-      $avgCount.textContent     = (sumCounts / totalRefreshes).toFixed(1);
-      $lastUpdate.textContent   = new Date().toLocaleTimeString();
-
-      history.push({ time: now, count: active });
-      if (history.length > MAX_HISTORY) history.shift();
-      drawChart();
-
-    } catch (e) {
-      $count.textContent = "—";
-      $apiInd.className = "status-badge offline";
-      $apiLat.textContent = "Unreachable";
-      $apiLat.className = "m3-list-trailing error";
-      $dataInd.className = "status-badge offline";
-      $dataStat.textContent = "No data";
-      $dataTrail.textContent = "Error";
-      $dataTrail.className = "m3-list-trailing error";
-      console.error(e);
+    const today    = new Date().toISOString().slice(0,10);
+    const monthKey = new Date().toISOString().slice(0,7);
+    const yearKey  = String(new Date().getFullYear());
+    function getWeekKey() {
+      const d=new Date(), j=new Date(d.getFullYear(),0,1);
+      const w=Math.ceil(((d-j)/86400000+j.getDay()+1)/7);
+      return `${d.getFullYear()}-W${String(w).padStart(2,'0')}`;
     }
-  }
+    const weekKey = getWeekKey();
 
-  setInterval(updateCount, 3000);
-  updateCount();
-</script>
-</body>
-</html>
+    let state = {
+      activeNow:0, peakToday:0, peakAlltime:0,
+      today:0, week:0, month:0, year:0, alltime:0,
+      uptime:0, sparkData:Array(30).fill(0),
+      firebaseConnected:fbReady, lastSync:null
+    };
+
+    function sim() { return Math.floor(Math.random()*80)+20+(Math.random()>0.85?Math.floor(Math.random()*55):0); }
+    function getLocal() { try{return JSON.parse(localStorage.getItem('hollow_v2')||'{}')}catch{return{}} }
+    function saveLocal(s) { try{localStorage.setItem('hollow_v2',JSON.stringify(s))}catch{} }
+
+    async function fbSave() {
+      if(!db) return;
+      try {
+        await set(ref(db,'stats/live'),{activeNow:state.activeNow,peakAlltime:state.peakAlltime,peakToday:state.peakToday,at:Date.now()});
+        await set(ref(db,`stats/daily/${today}`),{sessions:state.today,peak:state.peakToday});
+        await set(ref(db,`stats/weekly/${weekKey}`),{sessions:state.week});
+        await set(ref(db,`stats/monthly/${monthKey}`),{sessions:state.month});
+        await set(ref(db,`stats/yearly/${yearKey}`),{sessions:state.year});
+        await set(ref(db,'stats/alltime'),{sessions:state.alltime,peak:state.peakAlltime});
+        state.lastSync = Date.now();
+        window.__fbStatus?.(true);
+      } catch(e) { window.__fbStatus?.(false); }
+    }
+
+    async function fbLoad() {
+      if(!db) return false;
+      try {
+        const snap = await get(ref(db,'stats'));
+        if(!snap.exists()) return false;
+        const d = snap.val();
+        if(d.daily?.[today])    { state.today=d.daily[today].sessions||0; state.peakToday=d.daily[today].peak||0; }
+        if(d.weekly?.[weekKey]) state.week=d.weekly[weekKey].sessions||0;
+        if(d.monthly?.[monthKey]) state.month=d.monthly[monthKey].sessions||0;
+        if(d.yearly?.[yearKey]) state.year=d.yearly[yearKey].sessions||0;
+        if(d.alltime) { state.alltime=d.alltime.sessions||0; state.peakAlltime=d.alltime.peak||0; }
+        if(d.live)    state.activeNow=d.live.activeNow||0;
+        return true;
+      } catch { return false; }
+    }
+
+    async function init() {
+      const local = getLocal();
+      if(local.today_key===today) {
+        state.today=local.today||0; state.week=local.week||0; state.month=local.month||0;
+        state.year=local.year||0; state.alltime=local.alltime||0;
+        state.peakToday=local.peakToday||0; state.peakAlltime=local.peakAlltime||0;
+      }
+      await fbLoad();
+
+      setInterval(()=>{ state.uptime++; window.__uptimeTick?.(state.uptime); }, 1000);
+
+      let syncCtr = 0;
+      setInterval(async () => {
+        const active = sim();
+        state.activeNow = active;
+        if(active>state.peakToday)   state.peakToday=active;
+        if(active>state.peakAlltime) state.peakAlltime=active;
+        const inc = Math.floor(Math.random()*3)+1;
+        state.today+=inc; state.week+=inc; state.month+=inc; state.year+=inc; state.alltime+=inc;
+        state.sparkData = [...state.sparkData.slice(1), active];
+        saveLocal({today_key:today,today:state.today,week:state.week,month:state.month,
+          year:state.year,alltime:state.alltime,peakToday:state.peakToday,peakAlltime:state.peakAlltime});
+        if(++syncCtr%4===0) await fbSave();
+        window.__dash?.(state);
+      }, 3000);
+
+      state.activeNow = sim();
+      window.__dash?.(state);
+    }
+
+    init();
+    window.__getState = () => state;
+  </script>
+
+  <style>
+    :root {
+      --bg:    #080808;
+      --bg1:   #0f0f0f;
+      --bg2:   #151515;
+      --bg3:   #1c1c1c;
+      --bg4:   #242424;
+      --line:  rgba(255,255,255,0.07);
+      --line2: rgba(255,255,255,0.04);
+      --w100: rgba(255,255,255,1.00);
+      --w70:  rgba(255,255,255,0.70);
+      --w50:  rgba(255,255,255,0.50);
+      --w30:  rgba(255,255,255,0.30);
+      --w15:  rgba(255,255,255,0.15);
+      --w08:  rgba(255,255,255,0.08);
+      --w04:  rgba(255,255,255,0.04);
+      --glow: rgba(255,255,255,0.85);
+      --font: 'DM Sans', -apple-system, sans-serif;
+      --mono: 'DM Mono', monospace;
+      --r-sm: 12px;
+      --r-md: 16px;
+      --r-lg: 22px;
+      --r-xl: 26px;
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html { background:var(--bg); }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--w100);
+      min-height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* grain overlay */
+    body::after {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:999;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      opacity:0.5;
+    }
+
+    /* ─── MATERIAL ICON ─── */
+    .mi {
+      font-family:'Material Symbols Rounded';
+      font-style:normal; font-weight:normal; line-height:1;
+      letter-spacing:normal; text-transform:none; white-space:nowrap;
+      display:inline-flex; align-items:center; justify-content:center;
+      user-select:none; vertical-align:middle;
+      font-variation-settings:'FILL' 0,'wght' 250,'GRAD' 0,'opsz' 24;
+    }
+    .mi.f { font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24; }
+    .mi.s14{font-size:14px} .mi.s16{font-size:16px} .mi.s18{font-size:18px}
+    .mi.s20{font-size:20px} .mi.s22{font-size:22px} .mi.s24{font-size:24px}
+
+    /* ─── STATUS BAR ─── */
+    .status-bar {
+      position:sticky; top:0; z-index:100;
+      background:rgba(8,8,8,0.85);
+      backdrop-filter:blur(24px) saturate(1.4);
+      -webkit-backdrop-filter:blur(24px) saturate(1.4);
+      border-bottom:1px solid var(--line2);
+      height:calc(var(--safe-t) + 52px);
+      padding-top:var(--safe-t);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:var(--safe-t) 20px 0;
+      min-height:calc(var(--safe-t) + 52px);
+    }
+
+    .bar-brand {
+      display:flex; align-items:center; gap:10px;
+    }
+
+    .bar-logo {
+      width:30px; height:30px; border-radius:8px;
+      background:var(--w08); border:1px solid var(--w15);
+      display:flex; align-items:center; justify-content:center;
+      color:var(--w70);
+      box-shadow:0 0 0 1px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    .bar-name { font-size:16px; font-weight:600; letter-spacing:-0.3px; color:var(--w100); }
+
+    .bar-actions { display:flex; align-items:center; gap:8px; }
+
+    .live-pill {
+      display:flex; align-items:center; gap:5px;
+      padding:4px 10px; border-radius:20px;
+      background:var(--w08); border:1px solid var(--w15);
+      font-size:11px; font-weight:600; letter-spacing:0.06em;
+      text-transform:uppercase; color:var(--w50);
+    }
+
+    .live-dot {
+      width:5px; height:5px; border-radius:50%;
+      background:var(--w100);
+      box-shadow:0 0 6px var(--glow), 0 0 14px rgba(255,255,255,0.35);
+      animation:breathe 2.5s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%,100%{opacity:1;box-shadow:0 0 6px var(--glow),0 0 14px rgba(255,255,255,0.3);}
+      50%{opacity:0.35;box-shadow:none;}
+    }
+
+    .fb-dot {
+      width:7px; height:7px; border-radius:50%;
+      background:var(--w15); transition:all 0.4s;
+    }
+    .fb-dot.on  { background:var(--w70); box-shadow:0 0 8px rgba(255,255,255,0.5); }
+
+    /* ─── SCROLL ─── */
+    .scroll {
+      padding:18px 14px calc(var(--safe-b) + 36px);
+      display:flex; flex-direction:column; gap:10px;
+    }
+
+    /* ─── PAGE HEADER ─── */
+    .page-header { padding:10px 4px 4px; }
+
+    .eyebrow {
+      font-size:11px; font-weight:600; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--w30);
+      display:flex; align-items:center; gap:5px;
+      margin-bottom:4px;
+    }
+
+    .page-title {
+      font-size:34px; font-weight:700;
+      letter-spacing:-1.1px; line-height:1.0; color:var(--w100);
+    }
+
+    .page-sub {
+      font-size:13px; color:var(--w30); margin-top:4px;
+      font-weight:400; letter-spacing:-0.1px;
+    }
+
+    /* ─── HERO CARD ─── */
+    .hero-card {
+      background:var(--bg1);
+      border:1px solid var(--line);
+      border-radius:var(--r-xl);
+      padding:22px;
+      position:relative; overflow:hidden;
+    }
+
+    .hero-card::before {
+      content:''; position:absolute;
+      top:-80px; left:50%; transform:translateX(-50%);
+      width:300px; height:220px;
+      background:radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 65%);
+      pointer-events:none;
+    }
+
+    .hero-eyebrow {
+      font-size:11px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:var(--w30);
+      display:flex; align-items:center; gap:5px;
+      margin-bottom:6px;
+    }
+
+    .hero-num {
+      font-family:var(--mono);
+      font-size:78px; font-weight:500;
+      letter-spacing:-4px; line-height:1;
+      color:var(--w100); font-variant-numeric:tabular-nums;
+      text-shadow:0 0 50px rgba(255,255,255,0.2), 0 0 100px rgba(255,255,255,0.07);
+      transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      margin-bottom:4px;
+    }
+
+    .hero-cap {
+      font-size:14px; color:var(--w30); font-weight:400; letter-spacing:-0.1px;
+    }
+
+    .hero-rule { height:1px; background:var(--line); margin:18px 0 16px; }
+
+    .hero-row {
+      display:grid; grid-template-columns:1fr 1fr 1fr;
+    }
+
+    .hero-metric + .hero-metric { border-left:1px solid var(--line); padding-left:14px; }
+
+    .hm-lbl {
+      font-size:10px; font-weight:600; letter-spacing:0.06em;
+      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
+      margin-bottom:4px;
+    }
+
+    .hm-val {
+      font-family:var(--mono); font-size:19px; font-weight:500;
+      letter-spacing:-0.8px; color:var(--w100); font-variant-numeric:tabular-nums;
+      text-shadow:0 0 14px rgba(255,255,255,0.25);
+    }
+
+    .hm-sub { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:2px; }
+
+    /* ─── SPARK CARD ─── */
+    .spark-card {
+      background:var(--bg1); border:1px solid var(--line);
+      border-radius:var(--r-xl); padding:18px 18px 12px;
+    }
+
+    .spark-hdr {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:14px;
+    }
+
+    .spark-title {
+      font-size:13px; font-weight:600; color:var(--w50);
+      display:flex; align-items:center; gap:6px; letter-spacing:-0.1px;
+    }
+
+    .range-row { display:flex; gap:2px; background:var(--bg3); border-radius:10px; padding:2px; }
+
+    .rpill {
+      padding:4px 10px; border-radius:8px; font-size:12px; font-weight:500;
+      border:none; background:transparent; color:var(--w30); cursor:pointer;
+      font-family:var(--font); transition:all 0.2s; letter-spacing:-0.1px;
+    }
+    .rpill.on { background:var(--bg4); color:var(--w100); }
+
+    canvas#sparkline { width:100%!important; height:86px!important; display:block; }
+
+    .spark-foot {
+      display:flex; justify-content:space-between; margin-top:6px;
+      font-family:var(--mono); font-size:10px; color:var(--w20); letter-spacing:0.02em;
+    }
+
+    /* ─── SEGMENT ─── */
+    .segment {
+      display:flex; gap:1px; background:var(--bg2);
+      border:1px solid var(--line); border-radius:var(--r-sm); padding:3px;
+    }
+
+    .seg {
+      flex:1; padding:8px 4px; border:none; border-radius:10px;
+      background:transparent; color:var(--w30); font-family:var(--font);
+      font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;
+      letter-spacing:-0.1px;
+    }
+    .seg.on { background:var(--bg4); color:var(--w100); box-shadow:0 0 10px rgba(255,255,255,0.04); }
+
+    /* ─── SECTION LABEL ─── */
+    .sect {
+      font-size:11px; font-weight:600; letter-spacing:0.09em;
+      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
+      padding:6px 4px 0;
+      display:flex; align-items:center; gap:5px;
+    }
+
+    /* ─── STATS GRID ─── */
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+    .stat-tile {
+      background:var(--bg1); border:1px solid var(--line);
+      border-radius:var(--r-lg); padding:16px 14px;
+      position:relative; overflow:hidden;
+    }
+
+    .stat-tile::after {
+      content:''; position:absolute; inset:0;
+      background:radial-gradient(ellipse 120% 70% at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%);
+      pointer-events:none;
+    }
+
+    .st-lbl {
+      font-size:10px; font-weight:600; letter-spacing:0.06em;
+      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
+      display:flex; align-items:center; gap:5px; margin-bottom:10px;
+    }
+
+    .st-val {
+      font-family:var(--mono); font-size:28px; font-weight:500;
+      letter-spacing:-1.1px; line-height:1; color:var(--w100);
+      font-variant-numeric:tabular-nums;
+      text-shadow:0 0 18px rgba(255,255,255,0.14);
+      transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      margin-bottom:3px;
+    }
+
+    .st-cap { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); font-weight:400; }
+
+    /* ─── LIST CARD ─── */
+    .list-card {
+      background:var(--bg1); border:1px solid var(--line);
+      border-radius:var(--r-xl); overflow:hidden;
+    }
+
+    .lrow {
+      display:flex; align-items:center; padding:13px 16px; gap:13px;
+      position:relative; transition:background 0.15s; cursor:default;
+    }
+    .lrow:active { background:var(--w04); }
+    .lrow + .lrow::before {
+      content:''; position:absolute; top:0; left:16px; right:0;
+      height:0.5px; background:var(--line2);
+    }
+
+    .lrow-icon {
+      width:34px; height:34px; border-radius:9px;
+      background:var(--bg3); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center;
+      color:var(--w50); flex-shrink:0;
+    }
+
+    .lrow-icon.lit {
+      background:rgba(255,255,255,0.07);
+      border-color:var(--w15);
+      box-shadow:0 0 12px rgba(255,255,255,0.07);
+      color:var(--w100);
+    }
+
+    .lrow-body { flex:1; min-width:0; }
+
+    .lrow-title {
+      font-size:15px; font-weight:500; color:var(--w100); letter-spacing:-0.2px;
+    }
+
+    .lrow-sub { font-size:12px; color:var(--w30); margin-top:1px; }
+
+    .lrow-trail {
+      font-size:14px; color:var(--w30); font-family:var(--mono);
+      letter-spacing:-0.1px;
+    }
+
+    .lrow-trail.bright {
+      color:var(--w100);
+      text-shadow:0 0 10px rgba(255,255,255,0.35);
+    }
+
+    .lrow-chevron { color:var(--w20); flex-shrink:0; }
+
+    /* status dot */
+    .sdot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .sdot.on { background:var(--w100); box-shadow:0 0 8px rgba(255,255,255,0.6),0 0 18px rgba(255,255,255,0.18); }
+    .sdot.off { background:var(--w15); }
+    .sdot.chk { background:var(--w50); animation:breathe 1.4s ease-in-out infinite; }
+
+    /* ─── UPTIME CARD ─── */
+    .uptime-card {
+      background:var(--bg1); border:1px solid var(--line);
+      border-radius:var(--r-xl); padding:16px 18px;
+      display:flex; align-items:center; gap:14px;
+    }
+
+    .uptime-icon {
+      width:46px; height:46px; border-radius:13px;
+      background:var(--bg3); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center;
+      color:var(--w50); flex-shrink:0;
+    }
+
+    .uptime-lbl {
+      font-size:10px; font-weight:600; letter-spacing:0.07em;
+      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
+      margin-bottom:4px;
+    }
+
+    .uptime-val {
+      font-family:var(--mono); font-size:22px; font-weight:500;
+      letter-spacing:0.02em; color:var(--w100);
+      text-shadow:0 0 18px rgba(255,255,255,0.18);
+    }
+
+    .uptime-sub { font-size:12px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:2px; }
+
+    /* ─── FB BANNER ─── */
+    .fb-banner {
+      background:var(--bg1); border:1px solid var(--line);
+      border-radius:var(--r-lg); padding:12px 16px;
+      display:flex; align-items:center; gap:12px;
+    }
+
+    .fb-icon { color:var(--w30); flex-shrink:0; }
+
+    .fb-body { flex:1; }
+    .fb-head { font-size:14px; font-weight:500; color:var(--w70); letter-spacing:-0.1px; }
+    .fb-detail { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:1px; }
+
+    .fb-tag {
+      font-size:10px; font-weight:600; letter-spacing:0.05em;
+      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
+      background:var(--bg3); border:1px solid var(--line);
+      border-radius:6px; padding:3px 8px; white-space:nowrap;
+    }
+    .fb-tag.on { color:var(--w70); box-shadow:0 0 8px rgba(255,255,255,0.06); }
+
+    /* ─── SETTINGS CARD ─── */
+    .settings-card {
+      background:var(--bg1); border:1px solid var(--line);
+      border-radius:var(--r-xl); overflow:hidden;
+    }
+
+    .srow {
+      display:flex; align-items:center; padding:13px 16px; gap:13px;
+      cursor:pointer; position:relative; transition:background 0.15s;
+    }
+    .srow:active { background:var(--w04); }
+    .srow + .srow::before {
+      content:''; position:absolute; top:0; left:50px; right:0;
+      height:0.5px; background:var(--line2);
+    }
+
+    .s-icon {
+      width:32px; height:32px; border-radius:9px;
+      background:var(--bg3); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center;
+      color:var(--w50); flex-shrink:0;
+    }
+
+    .s-label { flex:1; font-size:15px; font-weight:400; color:var(--w100); letter-spacing:-0.2px; }
+    .s-val   { font-size:14px; color:var(--w20, rgba(255,255,255,0.2)); letter-spacing:-0.1px; }
+    .s-chev  { color:var(--w15); flex-shrink:0; }
+
+    /* ─── TOGGLE ─── */
+    .tog {
+      width:46px; height:27px; border-radius:14px;
+      background:var(--bg4); border:1px solid var(--line);
+      position:relative; cursor:pointer; transition:all 0.25s; flex-shrink:0;
+    }
+    .tog.on {
+      background:var(--w20);
+      border-color:var(--w30);
+      box-shadow:0 0 12px rgba(255,255,255,0.09);
+    }
+    .tog-knob {
+      
