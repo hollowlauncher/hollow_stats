@@ -5,14 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Hollow · Dashboard</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
 
-  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+    import { getDatabase, ref, onValue, set, get, child } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyBImlfiRQOoY5kWBU-YsSffKEYTjFJdDe8",
@@ -25,18 +22,17 @@
       measurementId: "G-W6DM9YCQM4"
     };
 
-    // ── How old a heartbeat can be and still count as "active" ──
     const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
-    // Compute period start timestamps (local time)
     function boundaries() {
       const now = new Date();
       const todayStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const dow         = (now.getDay() + 6) % 7; // Mon=0
+      const dow         = (now.getDay() + 6) % 7; 
       const weekStart   = todayStart - dow * 86400000;
       const monthStart  = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
       const yearStart   = new Date(now.getFullYear(), 0, 1).getTime();
-      return { todayStart, weekStart, monthStart, yearStart };
+      const dateString  = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      return { todayStart, weekStart, monthStart, yearStart, dateString };
     }
 
     let state = {
@@ -46,12 +42,10 @@
       firebaseConnected: false, lastSync: null
     };
 
-    // Rolling spark history — one entry per Firebase update
     const sparkHistory = Array(30).fill(0);
-    // Session-scoped peak (best effort without server-side storage)
-    let peakSession = 0;
-
     let db = null;
+    let peaksData = { allTime: 0, daily: {} };
+
     try {
       const app = initializeApp(firebaseConfig);
       db = getDatabase(app);
@@ -60,8 +54,33 @@
       window.__fbStatus?.(false);
     }
 
+    function updatePeaksInFirebase(activeNow, dateStr) {
+      if (!db) return;
+      let updated = false;
+
+      // Check and update All-Time Peak
+      if (activeNow > peaksData.allTime) {
+        peaksData.allTime = activeNow;
+        set(ref(db, 'metadata/peaks/allTime'), activeNow);
+        updated = true;
+      }
+
+      // Check and update Daily Peak
+      const currentDailyPeak = peaksData.daily[dateStr] || 0;
+      if (activeNow > currentDailyPeak) {
+        peaksData.daily[dateStr] = activeNow;
+        set(ref(db, `metadata/peaks/daily/${dateStr}`), activeNow);
+        updated = true;
+      }
+
+      if (updated) {
+        state.peakAlltime = peaksData.allTime;
+        state.peakToday = peaksData.daily[dateStr];
+        window.__dash?.(state);
+      }
+    }
+
     function init() {
-      // Uptime ticker
       setInterval(() => {
         state.uptime++;
         window.__uptimeTick?.(state.uptime);
@@ -73,11 +92,24 @@
         return;
       }
 
-      // ── Real-time listener on /players ──
-      // Schema: { sessionId: lastHeartbeatTimestamp (ms), ... }
+      // 1. Listen to Metadata/Peaks
+      onValue(ref(db, 'metadata/peaks'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.val();
+          peaksData.allTime = data.allTime || 0;
+          peaksData.daily = data.daily || {};
+          
+          const { dateString } = boundaries();
+          state.peakAlltime = peaksData.allTime;
+          state.peakToday = peaksData.daily[dateString] || 0;
+          window.__dash?.(state);
+        }
+      });
+
+      // 2. Listen to active players
       onValue(ref(db, 'players'), (snap) => {
         const now = Date.now();
-        const { todayStart, weekStart, monthStart, yearStart } = boundaries();
+        const { todayStart, weekStart, monthStart, yearStart, dateString } = boundaries();
 
         let activeNow = 0, today = 0, week = 0, month = 0, year = 0, alltime = 0;
 
@@ -94,26 +126,28 @@
           });
         }
 
-        // Update session peak
-        if (activeNow > peakSession) peakSession = activeNow;
-
-        // Roll spark window
         sparkHistory.shift();
         sparkHistory.push(activeNow);
 
         state = {
           ...state,
           activeNow,
-          peakToday:   peakSession,
-          peakAlltime: peakSession,
           today, week, month, year, alltime,
           sparkData: sparkHistory.slice(),
           firebaseConnected: true,
           lastSync: now
         };
 
+        // Ensure state contains latest peaks before dispatching UI update
+        state.peakAlltime = peaksData.allTime || state.peakAlltime;
+        state.peakToday = peaksData.daily[dateString] || state.peakToday;
+
         window.__fbStatus?.(true);
         window.__dash?.(state);
+
+        // Update database if new peak reached
+        updatePeaksInFirebase(activeNow, dateString);
+
       }, (err) => {
         console.error('[Firebase] read error:', err);
         window.__fbStatus?.(false);
@@ -126,27 +160,22 @@
 
   <style>
     :root {
-      --bg:    #080808;
-      --bg1:   #0f0f0f;
-      --bg2:   #151515;
-      --bg3:   #1c1c1c;
-      --bg4:   #242424;
-      --line:  rgba(255,255,255,0.07);
-      --line2: rgba(255,255,255,0.04);
-      --w100: rgba(255,255,255,1.00);
-      --w70:  rgba(255,255,255,0.70);
-      --w50:  rgba(255,255,255,0.50);
-      --w30:  rgba(255,255,255,0.30);
-      --w15:  rgba(255,255,255,0.15);
-      --w08:  rgba(255,255,255,0.08);
-      --w04:  rgba(255,255,255,0.04);
-      --glow: rgba(255,255,255,0.85);
-      --font: 'DM Sans', -apple-system, sans-serif;
-      --mono: 'DM Mono', monospace;
-      --r-sm: 12px;
-      --r-md: 16px;
-      --r-lg: 22px;
-      --r-xl: 26px;
+      /* Apple monochrome / Dark mode palette */
+      --bg:      #000000;
+      --surface: #1c1c1e;
+      --surface-elevated: #2c2c2e;
+      --line:    #38383a;
+      --text-pri: #ffffff;
+      --text-sec: #ebebf599; /* Apple secondary label */
+      --text-ter: #ebebf54d;
+      
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      
+      --r-md: 14px;
+      --r-lg: 18px;
+      --r-xl: 24px;
+      
       --safe-t: env(safe-area-inset-top, 0px);
       --safe-b: env(safe-area-inset-bottom, 0px);
     }
@@ -157,18 +186,12 @@
     body {
       font-family: var(--font);
       background: var(--bg);
-      color: var(--w100);
+      color: var(--text-pri);
       min-height: 100dvh;
       max-width: 430px;
       margin: 0 auto;
       -webkit-font-smoothing: antialiased;
-    }
-
-    /* grain overlay */
-    body::after {
-      content:''; position:fixed; inset:0; pointer-events:none; z-index:999;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-      opacity:0.5;
+      position: relative;
     }
 
     /* ─── MATERIAL ICON ─── */
@@ -178,472 +201,165 @@
       letter-spacing:normal; text-transform:none; white-space:nowrap;
       display:inline-flex; align-items:center; justify-content:center;
       user-select:none; vertical-align:middle;
-      font-variation-settings:'FILL' 0,'wght' 250,'GRAD' 0,'opsz' 24;
+      font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;
     }
-    .mi.f { font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24; }
+    .mi.f { font-variation-settings:'FILL' 1; }
     .mi.s14{font-size:14px} .mi.s16{font-size:16px} .mi.s18{font-size:18px}
     .mi.s20{font-size:20px} .mi.s22{font-size:22px} .mi.s24{font-size:24px}
 
     /* ─── STATUS BAR ─── */
     .status-bar {
       position:sticky; top:0; z-index:100;
-      background:rgba(8,8,8,0.85);
-      backdrop-filter:blur(24px) saturate(1.4);
-      -webkit-backdrop-filter:blur(24px) saturate(1.4);
-      border-bottom:1px solid var(--line2);
-      height:calc(var(--safe-t) + 52px);
-      padding-top:var(--safe-t);
+      background:rgba(0,0,0,0.7);
+      backdrop-filter:blur(20px) saturate(1.2);
+      -webkit-backdrop-filter:blur(20px) saturate(1.2);
+      border-bottom:0.5px solid var(--line);
       display:flex; align-items:center; justify-content:space-between;
-      padding:var(--safe-t) 20px 0;
-      min-height:calc(var(--safe-t) + 52px);
+      padding:calc(var(--safe-t) + 12px) 20px 12px;
     }
 
-    .bar-brand {
-      display:flex; align-items:center; gap:10px;
-    }
-
+    .bar-brand { display:flex; align-items:center; gap:8px; }
     .bar-logo {
-      width:30px; height:30px; border-radius:8px;
-      background:var(--w08); border:1px solid var(--w15);
+      width:28px; height:28px; border-radius:8px;
+      background:var(--surface-elevated); 
       display:flex; align-items:center; justify-content:center;
-      color:var(--w70);
-      box-shadow:0 0 0 1px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.06);
+      color:var(--text-pri);
     }
-
-    .bar-name { font-size:16px; font-weight:600; letter-spacing:-0.3px; color:var(--w100); }
-
-    .bar-actions { display:flex; align-items:center; gap:8px; }
-
-    .live-pill {
-      display:flex; align-items:center; gap:5px;
-      padding:4px 10px; border-radius:20px;
-      background:var(--w08); border:1px solid var(--w15);
-      font-size:11px; font-weight:600; letter-spacing:0.06em;
-      text-transform:uppercase; color:var(--w50);
-    }
-
-    .live-dot {
-      width:5px; height:5px; border-radius:50%;
-      background:var(--w100);
-      box-shadow:0 0 6px var(--glow), 0 0 14px rgba(255,255,255,0.35);
-      animation:breathe 2.5s ease-in-out infinite;
-    }
-
-    @keyframes breathe {
-      0%,100%{opacity:1;box-shadow:0 0 6px var(--glow),0 0 14px rgba(255,255,255,0.3);}
-      50%{opacity:0.35;box-shadow:none;}
-    }
-
+    .bar-name { font-size:16px; font-weight:600; letter-spacing:-0.4px; }
+    .bar-actions { display:flex; align-items:center; gap:12px; }
+    
     .fb-dot {
-      width:7px; height:7px; border-radius:50%;
-      background:var(--w15); transition:all 0.4s;
+      width:8px; height:8px; border-radius:50%;
+      background:var(--line); transition:all 0.4s;
     }
-    .fb-dot.on  { background:var(--w70); box-shadow:0 0 8px rgba(255,255,255,0.5); }
+    .fb-dot.on  { background:var(--text-pri); box-shadow:0 0 8px rgba(255,255,255,0.8); }
 
     /* ─── SCROLL ─── */
     .scroll {
-      padding:18px 14px calc(var(--safe-b) + 36px);
-      display:flex; flex-direction:column; gap:10px;
+      padding:24px 16px calc(var(--safe-b) + 40px);
+      display:flex; flex-direction:column; gap:16px;
     }
 
     /* ─── PAGE HEADER ─── */
-    .page-header { padding:10px 4px 4px; }
-
-    .eyebrow {
-      font-size:11px; font-weight:600; letter-spacing:0.1em;
-      text-transform:uppercase; color:var(--w30);
-      display:flex; align-items:center; gap:5px;
-      margin-bottom:4px;
-    }
-
     .page-title {
-      font-size:34px; font-weight:700;
-      letter-spacing:-1.1px; line-height:1.0; color:var(--w100);
+      font-size:32px; font-weight:700;
+      letter-spacing:-1px; line-height:1.1; margin-bottom:4px;
     }
+    .page-sub { font-size:14px; color:var(--text-sec); }
 
-    .page-sub {
-      font-size:13px; color:var(--w30); margin-top:4px;
-      font-weight:400; letter-spacing:-0.1px;
+    /* ─── CARDS ─── */
+    .card {
+      background:var(--surface);
+      border-radius:var(--r-xl);
+      padding:20px;
+      position:relative; overflow:hidden;
     }
 
     /* ─── HERO CARD ─── */
-    .hero-card {
-      background:var(--bg1);
-      border:1px solid var(--line);
-      border-radius:var(--r-xl);
-      padding:22px;
-      position:relative; overflow:hidden;
-    }
-
-    .hero-card::before {
-      content:''; position:absolute;
-      top:-80px; left:50%; transform:translateX(-50%);
-      width:300px; height:220px;
-      background:radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 65%);
-      pointer-events:none;
-    }
-
-    .hero-eyebrow {
-      font-size:11px; font-weight:600; letter-spacing:0.08em;
-      text-transform:uppercase; color:var(--w30);
-      display:flex; align-items:center; gap:5px;
-      margin-bottom:6px;
-    }
-
     .hero-num {
       font-family:var(--mono);
-      font-size:78px; font-weight:500;
-      letter-spacing:-4px; line-height:1;
-      color:var(--w100); font-variant-numeric:tabular-nums;
-      text-shadow:0 0 50px rgba(255,255,255,0.2), 0 0 100px rgba(255,255,255,0.07);
-      transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
-      margin-bottom:4px;
+      font-size:72px; font-weight:500;
+      letter-spacing:-3px; line-height:1;
+      margin-bottom:4px; margin-top:8px;
     }
+    .hero-cap { font-size:14px; color:var(--text-sec); }
+    .hero-rule { height:1px; background:var(--line); margin:20px 0; }
+    .hero-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .hero-metric + .hero-metric { border-left:1px solid var(--line); padding-left:12px; }
+    
+    .hm-lbl { font-size:12px; color:var(--text-sec); margin-bottom:4px; }
+    .hm-val { font-family:var(--mono); font-size:20px; font-weight:600; letter-spacing:-0.5px; }
 
-    .hero-cap {
-      font-size:14px; color:var(--w30); font-weight:400; letter-spacing:-0.1px;
+    /* ─── CHARTS ─── */
+    .chart-hdr {
+      display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;
     }
-
-    .hero-rule { height:1px; background:var(--line); margin:18px 0 16px; }
-
-    .hero-row {
-      display:grid; grid-template-columns:1fr 1fr 1fr;
+    .chart-title { font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; }
+    canvas { width:100%!important; display:block; cursor:pointer; }
+    #sparkline { height:100px!important; }
+    #barChart { height:160px!important; margin-top:16px; }
+    
+    /* ─── TOOLTIP ─── */
+    .tooltip {
+      position: fixed;
+      background: rgba(40,40,42,0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--line);
+      color: var(--text-pri);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: var(--mono);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -100%);
+      transition: opacity 0.2s;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
-
-    .hero-metric + .hero-metric { border-left:1px solid var(--line); padding-left:14px; }
-
-    .hm-lbl {
-      font-size:10px; font-weight:600; letter-spacing:0.06em;
-      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
-      margin-bottom:4px;
-    }
-
-    .hm-val {
-      font-family:var(--mono); font-size:19px; font-weight:500;
-      letter-spacing:-0.8px; color:var(--w100); font-variant-numeric:tabular-nums;
-      text-shadow:0 0 14px rgba(255,255,255,0.25);
-    }
-
-    .hm-sub { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:2px; }
-
-    /* ─── SPARK CARD ─── */
-    .spark-card {
-      background:var(--bg1); border:1px solid var(--line);
-      border-radius:var(--r-xl); padding:18px 18px 12px;
-    }
-
-    .spark-hdr {
-      display:flex; align-items:center; justify-content:space-between;
-      margin-bottom:14px;
-    }
-
-    .spark-title {
-      font-size:13px; font-weight:600; color:var(--w50);
-      display:flex; align-items:center; gap:6px; letter-spacing:-0.1px;
-    }
-
-    .range-row { display:flex; gap:2px; background:var(--bg3); border-radius:10px; padding:2px; }
-
-    .rpill {
-      padding:4px 10px; border-radius:8px; font-size:12px; font-weight:500;
-      border:none; background:transparent; color:var(--w30); cursor:pointer;
-      font-family:var(--font); transition:all 0.2s; letter-spacing:-0.1px;
-    }
-    .rpill.on { background:var(--bg4); color:var(--w100); }
-
-    canvas#sparkline { width:100%!important; height:86px!important; display:block; }
-
-    .spark-foot {
-      display:flex; justify-content:space-between; margin-top:6px;
-      font-family:var(--mono); font-size:10px; color:var(--w20); letter-spacing:0.02em;
-    }
+    .tooltip.show { opacity: 1; }
 
     /* ─── SEGMENT ─── */
     .segment {
-      display:flex; gap:1px; background:var(--bg2);
-      border:1px solid var(--line); border-radius:var(--r-sm); padding:3px;
+      display:flex; background:var(--surface-elevated);
+      border-radius:12px; padding:3px;
     }
-
     .seg {
-      flex:1; padding:8px 4px; border:none; border-radius:10px;
-      background:transparent; color:var(--w30); font-family:var(--font);
-      font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;
-      letter-spacing:-0.1px;
+      flex:1; padding:8px; border:none; border-radius:10px;
+      background:transparent; color:var(--text-sec); font-family:var(--font);
+      font-size:14px; font-weight:500; cursor:pointer; transition:background 0.2s;
     }
-    .seg.on { background:var(--bg4); color:var(--w100); box-shadow:0 0 10px rgba(255,255,255,0.04); }
-
-    /* ─── SECTION LABEL ─── */
-    .sect {
-      font-size:11px; font-weight:600; letter-spacing:0.09em;
-      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
-      padding:6px 4px 0;
-      display:flex; align-items:center; gap:5px;
-    }
+    .seg.on { background:var(--line); color:var(--text-pri); }
 
     /* ─── STATS GRID ─── */
-    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .stat-tile {
-      background:var(--bg1); border:1px solid var(--line);
-      border-radius:var(--r-lg); padding:16px 14px;
-      position:relative; overflow:hidden;
+      background:var(--surface); border-radius:var(--r-lg); padding:16px;
     }
-
-    .stat-tile::after {
-      content:''; position:absolute; inset:0;
-      background:radial-gradient(ellipse 120% 70% at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%);
-      pointer-events:none;
-    }
-
-    .st-lbl {
-      font-size:10px; font-weight:600; letter-spacing:0.06em;
-      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
-      display:flex; align-items:center; gap:5px; margin-bottom:10px;
-    }
-
-    .st-val {
-      font-family:var(--mono); font-size:28px; font-weight:500;
-      letter-spacing:-1.1px; line-height:1; color:var(--w100);
-      font-variant-numeric:tabular-nums;
-      text-shadow:0 0 18px rgba(255,255,255,0.14);
-      transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
-      margin-bottom:3px;
-    }
-
-    .st-cap { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); font-weight:400; }
-
-    /* ─── LIST CARD ─── */
-    .list-card {
-      background:var(--bg1); border:1px solid var(--line);
-      border-radius:var(--r-xl); overflow:hidden;
-    }
-
-    .lrow {
-      display:flex; align-items:center; padding:13px 16px; gap:13px;
-      position:relative; transition:background 0.15s; cursor:default;
-    }
-    .lrow:active { background:var(--w04); }
-    .lrow + .lrow::before {
-      content:''; position:absolute; top:0; left:16px; right:0;
-      height:0.5px; background:var(--line2);
-    }
-
-    .lrow-icon {
-      width:34px; height:34px; border-radius:9px;
-      background:var(--bg3); border:1px solid var(--line);
-      display:flex; align-items:center; justify-content:center;
-      color:var(--w50); flex-shrink:0;
-    }
-
-    .lrow-icon.lit {
-      background:rgba(255,255,255,0.07);
-      border-color:var(--w15);
-      box-shadow:0 0 12px rgba(255,255,255,0.07);
-      color:var(--w100);
-    }
-
-    .lrow-body { flex:1; min-width:0; }
-
-    .lrow-title {
-      font-size:15px; font-weight:500; color:var(--w100); letter-spacing:-0.2px;
-    }
-
-    .lrow-sub { font-size:12px; color:var(--w30); margin-top:1px; }
-
-    .lrow-trail {
-      font-size:14px; color:var(--w30); font-family:var(--mono);
-      letter-spacing:-0.1px;
-    }
-
-    .lrow-trail.bright {
-      color:var(--w100);
-      text-shadow:0 0 10px rgba(255,255,255,0.35);
-    }
-
-    .lrow-chevron { color:var(--w20); flex-shrink:0; }
-
-    /* status dot */
-    .sdot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-    .sdot.on { background:var(--w100); box-shadow:0 0 8px rgba(255,255,255,0.6),0 0 18px rgba(255,255,255,0.18); }
-    .sdot.off { background:var(--w15); }
-    .sdot.chk { background:var(--w50); animation:breathe 1.4s ease-in-out infinite; }
-
-    /* ─── UPTIME CARD ─── */
-    .uptime-card {
-      background:var(--bg1); border:1px solid var(--line);
-      border-radius:var(--r-xl); padding:16px 18px;
-      display:flex; align-items:center; gap:14px;
-    }
-
-    .uptime-icon {
-      width:46px; height:46px; border-radius:13px;
-      background:var(--bg3); border:1px solid var(--line);
-      display:flex; align-items:center; justify-content:center;
-      color:var(--w50); flex-shrink:0;
-    }
-
-    .uptime-lbl {
-      font-size:10px; font-weight:600; letter-spacing:0.07em;
-      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
-      margin-bottom:4px;
-    }
-
-    .uptime-val {
-      font-family:var(--mono); font-size:22px; font-weight:500;
-      letter-spacing:0.02em; color:var(--w100);
-      text-shadow:0 0 18px rgba(255,255,255,0.18);
-    }
-
-    .uptime-sub { font-size:12px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:2px; }
+    .st-lbl { font-size:13px; color:var(--text-sec); display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+    .st-val { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-1px; margin-bottom:4px; }
+    .st-cap { font-size:12px; color:var(--text-ter); }
 
     /* ─── FB BANNER ─── */
     .fb-banner {
-      background:var(--bg1); border:1px solid var(--line);
-      border-radius:var(--r-lg); padding:12px 16px;
-      display:flex; align-items:center; gap:12px;
+      background:var(--surface); border-radius:var(--r-lg); padding:16px;
+      display:flex; align-items:center; gap:12px; border:1px solid var(--line);
     }
-
-    .fb-icon { color:var(--w30); flex-shrink:0; }
-
+    .fb-icon { color:var(--text-sec); }
     .fb-body { flex:1; }
-    .fb-head { font-size:14px; font-weight:500; color:var(--w70); letter-spacing:-0.1px; }
-    .fb-detail { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:1px; }
-
-    .fb-tag {
-      font-size:10px; font-weight:600; letter-spacing:0.05em;
-      text-transform:uppercase; color:var(--w20, rgba(255,255,255,0.2));
-      background:var(--bg3); border:1px solid var(--line);
-      border-radius:6px; padding:3px 8px; white-space:nowrap;
-    }
-    .fb-tag.on { color:var(--w70); box-shadow:0 0 8px rgba(255,255,255,0.06); }
-
-    /* ─── SETTINGS CARD ─── */
-    .settings-card {
-      background:var(--bg1); border:1px solid var(--line);
-      border-radius:var(--r-xl); overflow:hidden;
-    }
-
-    .srow {
-      display:flex; align-items:center; padding:13px 16px; gap:13px;
-      cursor:pointer; position:relative; transition:background 0.15s;
-    }
-    .srow:active { background:var(--w04); }
-    .srow + .srow::before {
-      content:''; position:absolute; top:0; left:50px; right:0;
-      height:0.5px; background:var(--line2);
-    }
-
-    .s-icon {
-      width:32px; height:32px; border-radius:9px;
-      background:var(--bg3); border:1px solid var(--line);
-      display:flex; align-items:center; justify-content:center;
-      color:var(--w50); flex-shrink:0;
-    }
-
-    .s-label { flex:1; font-size:15px; font-weight:400; color:var(--w100); letter-spacing:-0.2px; }
-    .s-val   { font-size:14px; color:var(--w20, rgba(255,255,255,0.2)); letter-spacing:-0.1px; }
-    .s-chev  { color:var(--w15); flex-shrink:0; }
-
-    /* ─── TOGGLE ─── */
-    .tog {
-      width:46px; height:27px; border-radius:14px;
-      background:var(--bg4); border:1px solid var(--line);
-      position:relative; cursor:pointer; transition:all 0.25s; flex-shrink:0;
-    }
-    .tog.on {
-      background:var(--w20);
-      border-color:var(--w30);
-      box-shadow:0 0 12px rgba(255,255,255,0.09);
-    }
-    .tog-knob {
-      position:absolute; top:2px; left:2px;
-      width:21px; height:21px; border-radius:50%;
-      background:var(--w40);
-      box-shadow:0 1px 4px rgba(0,0,0,0.6);
-      transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);
-    }
-    .tog.on .tog-knob {
-      transform:translateX(19px);
-      background:var(--w100);
-      box-shadow:0 0 8px rgba(255,255,255,0.5),0 1px 4px rgba(0,0,0,0.4);
-    }
-
-    /* ─── DETAIL VIEW ─── */
-    .drow {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:13px 16px; position:relative;
-    }
-    .drow + .drow::before {
-      content:''; position:absolute; top:0; left:16px; right:16px;
-      height:0.5px; background:var(--line2);
-    }
-    .drow-l { display:flex; align-items:center; gap:10px; }
-    .drow-icon { color:var(--w20, rgba(255,255,255,0.2)); }
-    .drow-name { font-size:14px; font-weight:500; color:var(--w70); }
-    .drow-sub  { font-size:11px; color:var(--w20, rgba(255,255,255,0.2)); margin-top:1px; }
-    .drow-val {
-      font-family:var(--mono); font-size:16px; font-weight:500;
-      color:var(--w100); letter-spacing:-0.3px;
-      text-shadow:0 0 10px rgba(255,255,255,0.2);
-    }
-
-    /* ─── FOOTER ─── */
-    .footer { text-align:center; padding:4px 0 6px; }
-    .footer-txt { font-size:11px; color:var(--w15); letter-spacing:0.02em; }
+    .fb-head { font-size:15px; font-weight:600; }
+    .fb-detail { font-size:13px; color:var(--text-sec); margin-top:2px; }
 
     /* ─── ANIMATIONS ─── */
     @keyframes pop {
-      0%{transform:scale(0.88);opacity:0.6;}
-      60%{transform:scale(1.04);}
+      0%{transform:scale(0.95);opacity:0.8;}
       100%{transform:scale(1);opacity:1;}
     }
-    .pop { animation:pop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
-
-    @keyframes rise {
-      from{opacity:0;transform:translateY(18px);}
-      to{opacity:1;transform:translateY(0);}
-    }
-
-    .scroll > * { animation:rise 0.5s cubic-bezier(0.22,1,0.36,1) both; }
-    .scroll > *:nth-child(1){animation-delay:.05s}
-    .scroll > *:nth-child(2){animation-delay:.09s}
-    .scroll > *:nth-child(3){animation-delay:.13s}
-    .scroll > *:nth-child(4){animation-delay:.16s}
-    .scroll > *:nth-child(5){animation-delay:.19s}
-    .scroll > *:nth-child(6){animation-delay:.22s}
-    .scroll > *:nth-child(7){animation-delay:.25s}
-    .scroll > *:nth-child(n+8){animation-delay:.28s}
+    .pop { animation:pop 0.2s ease-out; }
   </style>
 </head>
 <body>
 
-<!-- ─── STATUS BAR ─── -->
+<div id="tooltip" class="tooltip">0</div>
+
 <header class="status-bar">
   <div class="bar-brand">
-    <div class="bar-logo">
-      <span class="mi s18 f">hub</span>
-    </div>
+    <div class="bar-logo"><span class="mi s18 f">hub</span></div>
     <span class="bar-name">Hollow</span>
   </div>
   <div class="bar-actions">
-    <div class="live-pill"><div class="live-dot"></div>Live</div>
     <div class="fb-dot" id="fbDot" title="Firebase"></div>
   </div>
 </header>
 
-<!-- ─── SCROLL VIEW ─── -->
 <main class="scroll">
-
-  <!-- HEADER -->
   <div class="page-header">
-    <div class="eyebrow"><span class="mi s14">monitoring</span> Overview</div>
     <div class="page-title">Dashboard</div>
     <div class="page-sub" id="syncLabel">Initialising…</div>
   </div>
 
-  <!-- HERO -->
-  <div class="hero-card">
-    <div class="hero-eyebrow"><span class="mi s14">person</span> Active Now</div>
+  <div class="card">
+    <div class="st-lbl"><span class="mi s16">person</span> Active Now</div>
     <div class="hero-num" id="activeNow">—</div>
     <div class="hero-cap">players online</div>
     <div class="hero-rule"></div>
@@ -651,345 +367,90 @@
       <div class="hero-metric">
         <div class="hm-lbl">Peak Today</div>
         <div class="hm-val" id="peakToday">—</div>
-        <div class="hm-sub">highest</div>
       </div>
       <div class="hero-metric">
         <div class="hm-lbl">All-Time Peak</div>
         <div class="hm-val" id="peakAlltime">—</div>
-        <div class="hm-sub">record</div>
       </div>
       <div class="hero-metric">
         <div class="hm-lbl">Uptime</div>
         <div class="hm-val" id="uptimeHero">0:00</div>
-        <div class="hm-sub">session</div>
       </div>
     </div>
   </div>
 
-  <!-- SPARKLINE -->
-  <div class="spark-card">
-    <div class="spark-hdr">
-      <div class="spark-title"><span class="mi s16">ssid_chart</span> Activity</div>
-      <div class="range-row">
-        <button class="rpill on" onclick="setRange('live',this)">Live</button>
-        <button class="rpill" onclick="setRange('1h',this)">1H</button>
-        <button class="rpill" onclick="setRange('24h',this)">24H</button>
-      </div>
+  <div class="card">
+    <div class="chart-hdr">
+      <div class="chart-title"><span class="mi s18">ssid_chart</span> Live Activity</div>
     </div>
     <canvas id="sparkline"></canvas>
-    <div class="spark-foot"><span>30 min ago</span><span>Now</span></div>
   </div>
 
-  <!-- SEGMENT -->
   <div class="segment">
     <button class="seg on" onclick="setView('periods',this)">Periods</button>
     <button class="seg" onclick="setView('chart',this)">Chart</button>
-    <button class="seg" onclick="setView('details',this)">Details</button>
   </div>
 
-  <!-- VIEW: PERIODS -->
   <div id="view-periods">
     <div class="stats-grid">
       <div class="stat-tile">
-        <div class="st-lbl"><span class="mi s14">today</span> Today</div>
+        <div class="st-lbl"><span class="mi s16">today</span> Today</div>
         <div class="st-val" id="statToday">—</div>
         <div class="st-cap">sessions</div>
       </div>
       <div class="stat-tile">
-        <div class="st-lbl"><span class="mi s14">date_range</span> Week</div>
+        <div class="st-lbl"><span class="mi s16">date_range</span> Week</div>
         <div class="st-val" id="statWeek">—</div>
         <div class="st-cap">sessions</div>
       </div>
       <div class="stat-tile">
-        <div class="st-lbl"><span class="mi s14">calendar_month</span> Month</div>
+        <div class="st-lbl"><span class="mi s16">calendar_month</span> Month</div>
         <div class="st-val" id="statMonth">—</div>
         <div class="st-cap">sessions</div>
       </div>
       <div class="stat-tile">
-        <div class="st-lbl"><span class="mi s14">military_tech</span> All Time</div>
+        <div class="st-lbl"><span class="mi s16">military_tech</span> All Time</div>
         <div class="st-val" id="statAlltime">—</div>
         <div class="st-cap">total</div>
       </div>
     </div>
   </div>
 
-  <!-- VIEW: CHART -->
   <div id="view-chart" style="display:none;">
-    <div class="list-card" style="padding:18px 16px 14px;">
-      <div style="font-size:12px;color:var(--w20);margin-bottom:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
-        <span class="mi s14">bar_chart</span> Sessions by Period
-      </div>
+    <div class="card">
+      <div class="chart-title"><span class="mi s18">bar_chart</span> Sessions</div>
       <canvas id="barChart"></canvas>
     </div>
   </div>
 
-  <!-- VIEW: DETAILS -->
-  <div id="view-details" style="display:none;">
-    <div class="list-card">
-      <div class="drow">
-        <div class="drow-l">
-          <span class="mi s20 drow-icon">today</span>
-          <div><div class="drow-name">Today</div><div class="drow-sub" id="det-date">—</div></div>
-        </div>
-        <div class="drow-val" id="det-today">—</div>
-      </div>
-      <div class="drow">
-        <div class="drow-l">
-          <span class="mi s20 drow-icon">date_range</span>
-          <div><div class="drow-name">This Week</div><div class="drow-sub" id="det-wk-lbl">—</div></div>
-        </div>
-        <div class="drow-val" id="det-week">—</div>
-      </div>
-      <div class="drow">
-        <div class="drow-l">
-          <span class="mi s20 drow-icon">calendar_month</span>
-          <div><div class="drow-name">This Month</div><div class="drow-sub" id="det-mo-lbl">—</div></div>
-        </div>
-        <div class="drow-val" id="det-month">—</div>
-      </div>
-      <div class="drow">
-        <div class="drow-l">
-          <span class="mi s20 drow-icon">event_note</span>
-          <div><div class="drow-name">This Year</div><div class="drow-sub" id="det-yr-lbl">—</div></div>
-        </div>
-        <div class="drow-val" id="det-year">—</div>
-      </div>
-      <div class="drow">
-        <div class="drow-l">
-          <span class="mi s20 drow-icon">military_tech</span>
-          <div><div class="drow-name">All Time</div><div class="drow-sub">Since launch</div></div>
-        </div>
-        <div class="drow-val" id="det-alltime">—</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- UPTIME -->
-  <div class="uptime-card">
-    <div class="uptime-icon"><span class="mi s22">timer</span></div>
-    <div>
-      <div class="uptime-lbl">Session Uptime</div>
-      <div class="uptime-val" id="uptimeDisp">00:00:00</div>
-      <div class="uptime-sub">This page session</div>
-    </div>
-  </div>
-
-  <!-- SERVICES -->
-  <div class="sect"><span class="mi s14">dns</span> Services</div>
-
-  <div class="list-card">
-    <div class="lrow">
-      <div class="lrow-icon lit"><span class="mi s18">public</span></div>
-      <div class="lrow-body"><div class="lrow-title">Game Server</div><div class="lrow-sub">us-east-1 · 12 ms</div></div>
-      <div class="sdot on"></div>
-    </div>
-    <div class="lrow">
-      <div class="lrow-icon"><span class="mi s18">lock</span></div>
-      <div class="lrow-body"><div class="lrow-title">Auth Service</div><div class="lrow-sub">All regions</div></div>
-      <div class="sdot on"></div>
-    </div>
-    <div class="lrow">
-      <div class="lrow-icon"><span class="mi s18">storage</span></div>
-      <div class="lrow-body"><div class="lrow-title">Firebase RTDB</div><div class="lrow-sub">Realtime sync</div></div>
-      <div class="sdot off" id="dbDot"></div>
-    </div>
-    <div class="lrow">
-      <div class="lrow-icon"><span class="mi s18">language</span></div>
-      <div class="lrow-body"><div class="lrow-title">CDN</div><div class="lrow-sub">Global edge</div></div>
-      <div class="sdot on"></div>
-    </div>
-  </div>
-
-  <!-- FIREBASE BANNER -->
   <div class="fb-banner">
-    <span class="mi s22 fb-icon" id="fbIcon">cloud_off</span>
+    <span class="mi s24 fb-icon" id="fbIcon">cloud_off</span>
     <div class="fb-body">
       <div class="fb-head" id="fbHead">Not Connected</div>
-      <div class="fb-detail" id="fbDetail">Add your Firebase config to enable sync.</div>
+      <div class="fb-detail" id="fbDetail">Connecting to Firebase...</div>
     </div>
-    <div class="fb-tag" id="fbTag">Local</div>
-  </div>
-
-  <!-- SETTINGS -->
-  <div class="sect"><span class="mi s14">settings</span> Settings</div>
-
-  <div class="settings-card">
-    <div class="srow" onclick="togSetting('notif')">
-      <div class="s-icon"><span class="mi s18">notifications</span></div>
-      <div class="s-label">Notifications</div>
-      <div class="tog on" id="tog-notif"><div class="tog-knob"></div></div>
-    </div>
-    <div class="srow" onclick="togSetting('sync')">
-      <div class="s-icon"><span class="mi s18">sync</span></div>
-      <div class="s-label">Auto-sync</div>
-      <div class="tog on" id="tog-sync"><div class="tog-knob"></div></div>
-    </div>
-  </div>
-
-  <div class="settings-card">
-    <div class="srow">
-      <div class="s-icon"><span class="mi s18">travel_explore</span></div>
-      <div class="s-label">Server Region</div>
-      <div class="s-val">US East</div>
-      <span class="mi s16 s-chev">chevron_right</span>
-    </div>
-    <div class="srow">
-      <div class="s-icon"><span class="mi s18">vpn_key</span></div>
-      <div class="s-label">API Key</div>
-      <div class="s-val">Configured</div>
-      <span class="mi s16 s-chev">chevron_right</span>
-    </div>
-    <div class="srow" onclick="clearData()">
-      <div class="s-icon"><span class="mi s18">delete_outline</span></div>
-      <div class="s-label" style="color:var(--w30)">Clear Local Data</div>
-      <span class="mi s16 s-chev">chevron_right</span>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <div class="footer">
-    <div class="footer-txt">Hollow · v2.4.1 · <span id="buildDate"></span></div>
   </div>
 
 </main>
 
 <script>
-  // ─── INIT LABELS ───
-  const nd = new Date();
-  document.getElementById('buildDate').textContent = nd.toLocaleDateString('en-US',{month:'short',year:'numeric'});
-  document.getElementById('det-date').textContent  = nd.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-  document.getElementById('det-mo-lbl').textContent = nd.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  document.getElementById('det-yr-lbl').textContent = nd.getFullYear().toString();
-  const wnum = (()=>{const d=new Date(),j=new Date(d.getFullYear(),0,1);return Math.ceil(((d-j)/86400000+j.getDay()+1)/7);})();
-  document.getElementById('det-wk-lbl').textContent = `Week ${wnum}, ${nd.getFullYear()}`;
+  // ─── UI UTILS ───
+  const tooltip = document.getElementById('tooltip');
 
-  // ─── SPARKLINE ───
-  let sparkData = Array(30).fill(0);
-  const sc = document.getElementById('sparkline');
-  const sx = sc.getContext('2d');
-
-  function drawSpark(data) {
-    const dpr = devicePixelRatio||1;
-    const w = sc.offsetWidth, h = 86;
-    sc.width = w*dpr; sc.height = h*dpr;
-    sx.scale(dpr,dpr); sx.clearRect(0,0,w,h);
-    const max = Math.max(...data, 1);
-    const pts = data.map((v,i)=>({x:(i/(data.length-1))*w, y:h-(v/max)*(h-14)-7}));
-
-    // gradient fill
-    const g = sx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'rgba(255,255,255,0.12)');
-    g.addColorStop(1,'rgba(255,255,255,0.0)');
-    sx.beginPath();
-    sx.moveTo(pts[0].x,pts[0].y);
-    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
-    sx.lineTo(w,h); sx.lineTo(0,h); sx.closePath();
-    sx.fillStyle=g; sx.fill();
-
-    // glow line
-    sx.save(); sx.filter='blur(3px)';
-    sx.beginPath();
-    sx.moveTo(pts[0].x,pts[0].y);
-    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
-    sx.strokeStyle='rgba(255,255,255,0.28)'; sx.lineWidth=2.5; sx.stroke();
-    sx.restore();
-
-    // crisp line
-    sx.beginPath();
-    sx.moveTo(pts[0].x,pts[0].y);
-    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
-    sx.strokeStyle='rgba(255,255,255,0.8)'; sx.lineWidth=1.5; sx.stroke();
-
-    // tip
-    const lp=pts[pts.length-1];
-    sx.beginPath(); sx.arc(lp.x,lp.y,5,0,Math.PI*2);
-    sx.fillStyle='rgba(255,255,255,0.12)'; sx.fill();
-    sx.beginPath(); sx.arc(lp.x,lp.y,2.5,0,Math.PI*2);
-    sx.fillStyle='#fff'; sx.fill();
+  function showTooltip(x, y, text) {
+    tooltip.textContent = text;
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y - 10}px`;
+    tooltip.classList.add('show');
+    clearTimeout(window._ttTimer);
+    window._ttTimer = setTimeout(() => tooltip.classList.remove('show'), 2000);
   }
 
- function drawBar(t, w, m, y) {
-    const c = document.getElementById('barChart');
-    if (!c) return;
-
-    const ctx = c.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-
-    const cw = c.offsetWidth;
-    const ch = 180;
-
-    // ✅ Prevent crash if layout not ready
-    if (!cw || !isFinite(cw)) return;
-
-    c.width = cw * dpr;
-    c.height = ch * dpr;
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // reset scale safely
-    ctx.clearRect(0, 0, cw, ch);
-
-    // ✅ Safe values
-    const vals = [t, w, m, y].map(v => {
-      v = Number(v);
-      return isFinite(v) && v >= 0 ? v : 0;
-    });
-
-    const labels = ['Today', 'Week', 'Month', 'Year'];
-
-    const max = Math.max(...vals);
-    const safeMax = max > 0 ? max : 1;
-
-    const colW = (cw - 32) / vals.length;
-    const bw = Math.min(colW - 18, 52);
-
-    vals.forEach((v, i) => {
-      const x = 16 + i * colW + (colW - bw) / 2;
-      const bh = Math.max((v / safeMax) * (ch - 40), 4);
-      const by = ch - bh - 24;
-
-      if (!isFinite(by) || !isFinite(bh)) return;
-
-      // 🌟 Glow
-      ctx.save();
-      ctx.filter = 'blur(10px)';
-      ctx.fillStyle = 'rgba(0,255,200,0.15)';
-      ctx.beginPath();
-      ctx.roundRect(x, by, bw, bh, [6,6,0,0]);
-      ctx.fill();
-      ctx.restore();
-
-      // 🎨 Gradient fill
-      const gradient = ctx.createLinearGradient(0, by, 0, by + bh);
-      gradient.addColorStop(0, '#00ffc6');
-      gradient.addColorStop(1, '#0066ff');
-
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.roundRect(x, by, bw, bh, [6,6,0,0]);
-      ctx.fill();
-
-      // ✨ Top highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillRect(x, by, bw, 2);
-
-      // 🏷 Label
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = "600 11px 'DM Sans', sans-serif";
-      ctx.textAlign = 'center';
-      ctx.fillText(labels[i], x + bw / 2, ch - 6);
-    });
- }
-
-  // ─── UTILS ───
   function fmt(n) {
     if(n==null)return'—';
     if(n>=1e6) return(n/1e6).toFixed(1)+'M';
     if(n>=1e3) return(n/1e3).toFixed(1)+'K';
     return Math.round(n).toLocaleString();
-  }
-
-  function fmtUp(s) {
-    const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
-    return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   }
 
   function fmtUpShort(s) {
@@ -1008,8 +469,105 @@
     el.classList.remove('pop');
     void el.offsetWidth;
     el.classList.add('pop');
-    setTimeout(()=>el.classList.remove('pop'),380);
   }
+
+  // ─── SPARKLINE (Monochrome) ───
+  let sparkData = Array(30).fill(0);
+  const sc = document.getElementById('sparkline');
+  const sx = sc.getContext('2d');
+
+  function drawSpark(data) {
+    const dpr = devicePixelRatio||1;
+    const w = sc.offsetWidth, h = 100;
+    sc.width = w*dpr; sc.height = h*dpr;
+    sx.scale(dpr,dpr); sx.clearRect(0,0,w,h);
+    const max = Math.max(...data, 1);
+    const pts = data.map((v,i)=>({x:(i/(data.length-1))*w, y:h-(v/max)*(h-14)-7}));
+
+    // Filled area (White transparent gradient)
+    const g = sx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'rgba(255,255,255,0.15)');
+    g.addColorStop(1,'rgba(255,255,255,0.0)');
+    sx.beginPath(); sx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
+    sx.lineTo(w,h); sx.lineTo(0,h); sx.closePath();
+    sx.fillStyle=g; sx.fill();
+
+    // Line (Solid white)
+    sx.beginPath(); sx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach((p,i)=>{if(i){const pp=pts[i-1];sx.bezierCurveTo((pp.x+p.x)/2,pp.y,(pp.x+p.x)/2,p.y,p.x,p.y);}});
+    sx.strokeStyle='#ffffff'; sx.lineWidth=2; sx.stroke();
+
+    // Tip dot
+    const lp=pts[pts.length-1];
+    sx.beginPath(); sx.arc(lp.x,lp.y,4,0,Math.PI*2);
+    sx.fillStyle='#ffffff'; sx.fill();
+    sx.shadowColor = 'rgba(255,255,255,0.5)';
+    sx.shadowBlur = 8; sx.fill(); sx.shadowBlur = 0;
+  }
+
+  // Sparkline Tooltip Listener
+  sc.addEventListener('click', (e) => {
+    const rect = sc.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const idx = Math.max(0, Math.min(sparkData.length - 1, Math.round((x / rect.width) * (sparkData.length - 1))));
+    showTooltip(e.clientX, e.clientY, `Active: ${sparkData[idx]}`);
+  });
+
+  // ─── BAR CHART (Monochrome) ───
+  function drawBar(t, w, m, y) {
+    const c = document.getElementById('barChart');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const cw = c.offsetWidth, ch = 160;
+
+    if (!cw || !isFinite(cw)) return;
+
+    c.width = cw * dpr; c.height = ch * dpr;
+    ctx.scale(dpr, dpr); ctx.clearRect(0, 0, cw, ch);
+
+    const vals = [t, w, m, y].map(v => (isFinite(v) && v >= 0 ? Number(v) : 0));
+    const labels = ['Today', 'Week', 'Month', 'Year'];
+    const max = Math.max(...vals, 1);
+    const colW = cw / vals.length;
+    const bw = Math.min(colW - 20, 40);
+
+    // Save bar positions for tooltip
+    c._barData = [];
+
+    vals.forEach((v, i) => {
+      const x = i * colW + (colW - bw) / 2;
+      const bh = Math.max((v / max) * (ch - 30), 4);
+      const by = ch - bh - 20;
+
+      c._barData.push({ x, y: by, w: bw, h: bh, val: v, label: labels[i] });
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(x, by, bw, bh, [6,6,0,0]);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = "500 12px -apple-system, sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + bw / 2, ch - 4);
+    });
+  }
+
+  // Bar Chart Tooltip Listener
+  document.getElementById('barChart').addEventListener('click', (e) => {
+    const c = e.target;
+    if (!c._barData) return;
+    const rect = c.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const bar = c._barData.find(b => x >= b.x && x <= b.x + b.w);
+    if (bar) {
+      showTooltip(e.clientX, e.clientY, `${bar.label}: ${fmt(bar.val)}`);
+    }
+  });
 
   // ─── CALLBACKS ───
   window.__dash = function(s) {
@@ -1020,80 +578,53 @@
     upd('statWeek',    fmt(s.week));
     upd('statMonth',   fmt(s.month));
     upd('statAlltime', fmt(s.alltime));
-    upd('det-today',   fmt(s.today));
-    upd('det-week',    fmt(s.week));
-    upd('det-month',   fmt(s.month));
-    upd('det-year',    fmt(s.year));
-    upd('det-alltime', fmt(s.alltime));
 
     sparkData = s.sparkData.slice();
     drawSpark(sparkData);
-    drawBar(s.today,s.week,s.month,s.year);
+    if (document.getElementById('view-chart').style.display !== 'none') {
+        drawBar(s.today, s.week, s.month, s.year);
+    }
 
     const sl=document.getElementById('syncLabel');
     if(s.firebaseConnected) {
       sl.textContent = s.lastSync
-        ? `Live · updated ${new Date(s.lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`
-        : 'Connected to Firebase…';
+        ? `Live Sync · ${new Date(s.lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`
+        : 'Connecting...';
     } else {
-      sl.textContent = 'Not connected · check Firebase config';
+      sl.textContent = 'Offline';
     }
   };
 
   window.__uptimeTick = function(s) {
-    document.getElementById('uptimeDisp').textContent = fmtUp(s);
     document.getElementById('uptimeHero').textContent = fmtUpShort(s);
   };
 
   window.__fbStatus = function(ok) {
     document.getElementById('fbDot').className  = 'fb-dot'+(ok?' on':'');
-    document.getElementById('dbDot').className  = 'sdot'+(ok?' on':' off');
-    document.getElementById('fbHead').textContent   = ok ? 'Firebase Connected'  : 'Not Connected';
-    document.getElementById('fbDetail').textContent = ok ? 'Real-time cloud sync active.' : 'Add your Firebase config to enable sync.';
-    const tag = document.getElementById('fbTag');
-    tag.textContent = ok ? 'Live' : 'Local';
-    tag.className   = 'fb-tag'+(ok?' on':'');
+    document.getElementById('fbHead').textContent   = ok ? 'Database Connected' : 'Connection Lost';
+    document.getElementById('fbDetail').textContent = ok ? 'Receiving real-time updates.' : 'Check your internet or config.';
     document.getElementById('fbIcon').textContent = ok ? 'cloud_done' : 'cloud_off';
   };
 
-  // ─── VIEW SWITCH ───
   function setView(name, btn) {
-    ['periods','chart','details'].forEach(v=>{
+    ['periods','chart'].forEach(v=>{
       document.getElementById('view-'+v).style.display = v===name?'':'none';
     });
     document.querySelectorAll('.seg').forEach(b=>b.classList.remove('on'));
     btn.classList.add('on');
     if(name==='chart') {
       const s=window.__getState?.()??{};
-      setTimeout(()=>drawBar(s.today,s.week,s.month,s.year),30);
+      setTimeout(()=>drawBar(s.today,s.week,s.month,s.year),10);
     }
   }
 
-  // ─── RANGE ───
-  function setRange(r,btn) {
-    document.querySelectorAll('.rpill').forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on');
+  window.addEventListener('resize', () => {
     drawSpark(sparkData);
-  }
-
-  // ─── TOGGLES ───
-  const togState = {notif:true, sync:true};
-  function togSetting(k) {
-    togState[k] = !togState[k];
-    document.getElementById('tog-'+k).classList.toggle('on', togState[k]);
-  }
-
-  // ─── CLEAR DATA ───
-  function clearData() {
-    if(confirm('Clear cached data and reload?')) {
-      localStorage.clear();
-      location.reload();
+    const s = window.__getState?.() ?? {};
+    if (document.getElementById('view-chart').style.display !== 'none') {
+       drawBar(s.today, s.week, s.month, s.year);
     }
-  }
-
-  // ─── BOOT ───
-  drawSpark(sparkData);
-  window.addEventListener('resize', ()=>drawSpark(sparkData));
+  });
 </script>
 </body>
 </html>
